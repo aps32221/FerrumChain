@@ -1,0 +1,142 @@
+# ============================================================================
+# Ferrum 鐵鏈 — root Cargo workspace
+# ----------------------------------------------------------------------------
+# Permissioned sovereign blockchain on Substrate / Polkadot-SDK (FRAME).
+#
+# THE ONE PINNED SUBSTRATE SOURCE
+# -------------------------------
+# Every crate in this workspace MUST consume FRAME / Substrate ONLY through the
+# `[workspace.dependencies]` table below (using `workspace = true`). The pinned
+# source is the polkadot-sdk umbrella crate, release tag `polkadot-stable2412`,
+# pulled from git. Module authors MUST NOT add their own substrate/FRAME git or
+# crates.io dependency — copy the entries verbatim with `{ workspace = true }`.
+#
+# Substrate version string (copy verbatim into SPEC compliance):
+#   polkadot-sdk @ git tag "polkadot-stable2412"
+# ============================================================================
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/primitives",
+    "crates/zk",
+    "pallets/identity",
+    "pallets/tax",
+    "pallets/credential",
+    "pallets/treasury",
+    "pallets/federation",
+    "pallets/interop",
+    "runtime",
+    "node",
+]
+
+[workspace.package]
+authors     = ["Ferrum 鐵鏈 Authors"]
+edition     = "2021"
+license     = "Apache-2.0"
+repository  = "https://github.com/ferrum-chain/ferrum"
+homepage    = "https://ferrum.example"
+version     = "0.1.0"
+
+# ----------------------------------------------------------------------------
+# Shared, PINNED dependencies. Reference these from member crates with
+# `{ workspace = true }` (optionally `, default-features = false` for no_std).
+# ----------------------------------------------------------------------------
+[workspace.dependencies]
+
+# --- Internal crates --------------------------------------------------------
+ferrum-primitives = { path = "crates/primitives", default-features = false }
+ferrum-zk         = { path = "crates/zk", default-features = false }
+pallet-identity-fer   = { path = "pallets/identity", default-features = false }
+pallet-tax            = { path = "pallets/tax", default-features = false }
+pallet-credential     = { path = "pallets/credential", default-features = false }
+pallet-treasury-fer   = { path = "pallets/treasury", default-features = false }
+pallet-federation     = { path = "pallets/federation", default-features = false }
+pallet-interop        = { path = "pallets/interop", default-features = false }
+ferrum-runtime    = { path = "runtime", default-features = false }
+
+# --- FRAME / Substrate (THE pinned source: polkadot-sdk @ polkadot-stable2412)
+# Use the umbrella `polkadot-sdk` crate so every member gets a single coherent
+# set of FRAME crate versions. Sub-modules of the umbrella are re-exported, but
+# we also expose the canonical crates by name below for ergonomic pallet code.
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+frame-system  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+frame-executive    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+frame-try-runtime  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+
+# Common FRAME pallets the runtime composes with.
+pallet-balances    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-timestamp   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-aura        = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-grandpa     = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-sudo        = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-contracts   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+
+# Substrate primitives (sp-*).
+sp-core    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-std     = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-io      = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-api     = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-consensus-aura    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-consensus-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-offchain  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-session   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-version   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-keyring   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+
+# Client-side (node only; std). Pinned to the same tag.
+sc-cli             = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-service         = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-executor        = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-network         = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-consensus       = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-consensus-aura  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-consensus-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-client-api      = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-telemetry       = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-rpc-api         = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+
+# --- SCALE codec / type info (must match the FRAME-expected versions) --------
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = ["derive"] }
+scale-info = { version = "2.11.3", default-features = false, features = ["derive"] }
+
+# --- Cryptography / ZK (L1 stack per whitepaper §04) ------------------------
+# arkworks Groth16/PLONK over BLS12-381 for selective-disclosure & bracket proofs.
+ark-bls12-381 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-ff        = { version = "0.4.2", default-features = false }
+ark-ec        = { version = "0.4.2", default-features = false }
+ark-groth16   = { version = "0.4.0", default-features = false }
+ark-serialize = { version = "0.4.2", default-features = false }
+ark-std       = { version = "0.4.0", default-features = false }
+blake2 = { version = "0.10.6", default-features = false }
+
+# --- Node async runtime -----------------------------------------------------
+tokio    = { version = "1.40", features = ["macros", "rt-multi-thread"] }
+clap     = { version = "4.5", features = ["derive"] }
+jsonrpsee = { version = "0.24", features = ["server"] }
+futures  = "0.3.30"
+serde    = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false }
+log      = { version = "0.4", default-features = false }
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+
+[profile.production]
+inherits = "release"
+lto = true
+codegen-units = 1

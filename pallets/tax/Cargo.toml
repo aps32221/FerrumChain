@@ -1,0 +1,65 @@
+[package]
+name = "pallet-tax"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+description = "Ferrum 鐵鏈 — tax administration pallet: e-invoice anchoring, withholding, ZK bracket proofs, authorized audit (whitepaper §06)"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true }
+scale-info = { workspace = true }
+
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+sp-std = { workspace = true }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
+
+ferrum-primitives = { workspace = true }
+ferrum-zk = { workspace = true }
+
+# Used by `mock.rs` (test runtime) and the `runtime-benchmarks` feature.
+pallet-balances = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+pallet-balances = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-benchmarking?/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-io?/std",
+    "pallet-balances?/std",
+    "ferrum-primitives/std",
+    "ferrum-zk/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-balances",
+    "sp-io",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "pallet-balances?/try-runtime",
+]

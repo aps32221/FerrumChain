@@ -1,0 +1,66 @@
+[package]
+name = "ferrum-zk"
+description = "Ferrum 鐵鏈 — zero-knowledge selective-disclosure proofs (age, tax-bracket, BBS+) — § 04/§05"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# --- Internal ---------------------------------------------------------------
+ferrum-primitives = { workspace = true }
+
+# --- SCALE / type info (needed because we re-use primitives' bounded types) -
+codec     = { workspace = true }
+scale-info = { workspace = true }
+
+# --- Substrate primitives (no_std friendly) ---------------------------------
+sp-core    = { workspace = true }
+sp-std     = { workspace = true }
+sp-runtime = { workspace = true }
+
+# --- arkworks Groth16 over BLS12-381 (whitepaper §04/§05) -------------------
+ark-bls12-381 = { workspace = true }
+ark-ff        = { workspace = true }
+ark-ec        = { workspace = true }
+ark-groth16   = { workspace = true }
+ark-serialize = { workspace = true }
+ark-std       = { workspace = true }
+
+# --- Hashing (BBS+ commitments / nullifier derivation) -----------------------
+blake2 = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "ferrum-primitives/std",
+    "codec/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "ark-bls12-381/std",
+    "ark-ff/std",
+    "ark-ec/std",
+    "ark-groth16/std",
+    "ark-serialize/std",
+    "ark-std/std",
+    "blake2/std",
+]
+# No FRAME runtime here (plain library crate, §05) — passthroughs kept for
+# workspace-wide feature unification only.
+runtime-benchmarks = []
+try-runtime = []
+
+# --- Dev-only deps for unit tests (toy R1CS circuits to exercise Groth16) ---
+# Not part of [workspace.dependencies] (only needed here, test-only); pinned to
+# the 0.4.x arkworks series to match the workspace-pinned ark-groth16 = 0.4.0.
+[dev-dependencies]
+ark-relations = { version = "0.4.0", default-features = false }
+ark-r1cs-std  = { version = "0.4.0", default-features = false }
+ark-snark     = { version = "0.4.0", default-features = false }

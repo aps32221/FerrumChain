@@ -1,0 +1,19 @@
+# Rust / Cargo build artifacts
+/target/
+**/target/
+Cargo.lock
+
+# Substrate / node local data
+.chain-data/
+*.db/
+rocksdb/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# WASM build intermediates
+**/*.wasm.bin

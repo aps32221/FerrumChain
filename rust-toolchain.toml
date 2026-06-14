@@ -1,0 +1,8 @@
+# Pinned toolchain for the whole Ferrum workspace.
+# polkadot-stable2412 builds cleanly on this channel. Module authors MUST NOT
+# override this; the WASM target is required for the runtime build.
+[toolchain]
+channel = "1.81.0"
+components = ["rustfmt", "clippy", "rust-src"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

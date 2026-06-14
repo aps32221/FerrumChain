@@ -1,0 +1,34 @@
+[package]
+name        = "ferrum-primitives"
+description = "Shared, no_std primitive types for the Ferrum 鐵鏈 runtime and all pallets."
+version     = { workspace = true }
+authors     = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
+repository  = { workspace = true }
+homepage    = { workspace = true }
+
+[dependencies]
+codec      = { workspace = true }
+scale-info = { workspace = true }
+sp-core    = { workspace = true }
+sp-std     = { workspace = true }
+sp-runtime = { workspace = true }
+frame-support = { workspace = true }
+serde      = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-runtime/std",
+    "frame-support/std",
+    "serde?/std",
+    "sp-runtime/serde",
+    "sp-core/serde",
+]
+# Optional human-readable (de)serialization for off-chain tooling / genesis.
+serde = ["dep:serde"]
