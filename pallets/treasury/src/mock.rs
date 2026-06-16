@@ -4,9 +4,10 @@
 use crate as pallet_treasury_fer;
 use frame_support::{
     derive_impl,
-    traits::{ConstU64, EnsureOrigin},
+    traits::EnsureOrigin,
 };
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use frame_support::traits::ConstU128;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -30,7 +31,7 @@ impl frame_system::Config for Test {
 impl pallet_balances::Config for Test {
     type AccountStore = System;
     type Balance = u128;
-    type ExistentialDeposit = ConstU64<1>;
+    type ExistentialDeposit = ConstU128<1>;
 }
 
 /// 測試用：root 來源視為治理（§08：發行由國庫與治理控制）。
@@ -38,17 +39,17 @@ impl pallet_balances::Config for Test {
 /// Test-only: root origin is treated as governance (§08: issuance is
 /// treasury/governance-controlled).
 pub struct EnsureGovernance;
-impl EnsureOrigin<frame_system::pallet::RuntimeOrigin<Test>> for EnsureGovernance {
+impl EnsureOrigin<frame_system::pallet_prelude::OriginFor<Test>> for EnsureGovernance {
     type Success = ();
 
     fn try_origin(
-        o: frame_system::pallet::RuntimeOrigin<Test>,
-    ) -> Result<Self::Success, frame_system::pallet::RuntimeOrigin<Test>> {
+        o: frame_system::pallet_prelude::OriginFor<Test>,
+    ) -> Result<Self::Success, frame_system::pallet_prelude::OriginFor<Test>> {
         frame_system::ensure_root(o.clone()).map_err(|_| o)
     }
 
     #[cfg(feature = "runtime-benchmarks")]
-    fn try_successful_origin() -> Result<frame_system::pallet::RuntimeOrigin<Test>, ()> {
+    fn try_successful_origin() -> Result<frame_system::pallet_prelude::OriginFor<Test>, ()> {
         Ok(frame_system::RawOrigin::Root.into())
     }
 }
@@ -65,5 +66,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap();
-    sp_io::TestExternalities::new(t)
+    let mut ext = sp_io::TestExternalities::new(t);
+    // 區塊 0 不記錄事件，測試需從區塊 1 開始 / Block 0 does not record events;
+    // advance to block 1 so `System::events()` is populated for assertions.
+    ext.execute_with(|| System::set_block_number(1));
+    ext
 }

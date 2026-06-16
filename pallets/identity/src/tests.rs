@@ -18,7 +18,7 @@ fn foreign_did() -> Did {
     }
 }
 
-fn test_doc(did: Did, controller: u64, doc_hash: [u8; 32]) -> DidDocument {
+fn test_doc(did: Did, controller: ferrum_primitives::AccountId, doc_hash: [u8; 32]) -> DidDocument {
     DidDocument {
         did,
         controller,
@@ -32,15 +32,15 @@ fn test_doc(did: Did, controller: u64, doc_hash: [u8; 32]) -> DidDocument {
 #[test]
 fn anchor_did_works_and_emits_event() {
     new_test_ext().execute_with(|| {
-        let doc = test_doc(test_did(), 1, [1u8; 32]);
+        let doc = test_doc(test_did(), account(1), [1u8; 32]);
 
-        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(1), doc.clone()));
+        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(account(1)), doc.clone()));
 
         assert_eq!(Identity::dids(test_did()).unwrap(), doc);
-        assert_eq!(Identity::did_by_controller(1u64).unwrap(), test_did());
+        assert_eq!(Identity::did_by_controller(account(1)).unwrap(), test_did());
 
         System::assert_last_event(
-            Event::DidAnchored { did: test_did(), controller: 1u64, doc_hash: [1u8; 32] }.into(),
+            Event::DidAnchored { did: test_did(), controller: account(1), doc_hash: [1u8; 32] }.into(),
         );
 
         // Cross-pallet read-only interface should also resolve it.
@@ -51,9 +51,9 @@ fn anchor_did_works_and_emits_event() {
 #[test]
 fn anchor_did_rejects_non_issuer_origin() {
     new_test_ext().execute_with(|| {
-        let doc = test_doc(test_did(), 2, [2u8; 32]);
+        let doc = test_doc(test_did(), account(2), [2u8; 32]);
         assert_noop!(
-            Identity::anchor_did(RuntimeOrigin::signed(2), doc),
+            Identity::anchor_did(RuntimeOrigin::signed(account(2)), doc),
             frame_support::error::BadOrigin
         );
     });
@@ -62,9 +62,9 @@ fn anchor_did_rejects_non_issuer_origin() {
 #[test]
 fn anchor_did_rejects_wrong_chain_tag() {
     new_test_ext().execute_with(|| {
-        let doc = test_doc(foreign_did(), 1, [3u8; 32]);
+        let doc = test_doc(foreign_did(), account(1), [3u8; 32]);
         assert_noop!(
-            Identity::anchor_did(RuntimeOrigin::signed(1), doc),
+            Identity::anchor_did(RuntimeOrigin::signed(account(1)), doc),
             Error::<Test>::WrongChainTag
         );
     });
@@ -73,10 +73,10 @@ fn anchor_did_rejects_wrong_chain_tag() {
 #[test]
 fn anchor_did_rejects_duplicate() {
     new_test_ext().execute_with(|| {
-        let doc = test_doc(test_did(), 1, [4u8; 32]);
-        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(1), doc.clone()));
+        let doc = test_doc(test_did(), account(1), [4u8; 32]);
+        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(account(1)), doc.clone()));
         assert_noop!(
-            Identity::anchor_did(RuntimeOrigin::signed(1), doc),
+            Identity::anchor_did(RuntimeOrigin::signed(account(1)), doc),
             Error::<Test>::AlreadyExists
         );
     });
@@ -85,8 +85,8 @@ fn anchor_did_rejects_duplicate() {
 #[test]
 fn rotate_keys_works() {
     new_test_ext().execute_with(|| {
-        let doc = test_doc(test_did(), 1, [5u8; 32]);
-        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(1), doc));
+        let doc = test_doc(test_did(), account(1), [5u8; 32]);
+        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(account(1)), doc));
 
         let keys: BoundedVec<DidKeyRef, _> = BoundedVec::try_from(vec![DidKeyRef {
             kind: KeyKind::Sr25519,
@@ -94,7 +94,7 @@ fn rotate_keys_works() {
         }])
         .unwrap();
 
-        assert_ok!(Identity::rotate_keys(RuntimeOrigin::signed(1), test_did(), keys.clone()));
+        assert_ok!(Identity::rotate_keys(RuntimeOrigin::signed(account(1)), test_did(), keys.clone()));
 
         assert_eq!(Identity::dids(test_did()).unwrap().keys, keys);
         System::assert_last_event(Event::KeysRotated { did: test_did(), key_count: 1 }.into());
@@ -104,12 +104,12 @@ fn rotate_keys_works() {
 #[test]
 fn rotate_keys_rejects_non_controller() {
     new_test_ext().execute_with(|| {
-        let doc = test_doc(test_did(), 1, [6u8; 32]);
-        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(1), doc));
+        let doc = test_doc(test_did(), account(1), [6u8; 32]);
+        assert_ok!(Identity::anchor_did(RuntimeOrigin::signed(account(1)), doc));
 
         let keys: BoundedVec<DidKeyRef, _> = BoundedVec::default();
         assert_noop!(
-            Identity::rotate_keys(RuntimeOrigin::signed(2), test_did(), keys),
+            Identity::rotate_keys(RuntimeOrigin::signed(account(2)), test_did(), keys),
             Error::<Test>::NotController
         );
     });
@@ -120,7 +120,7 @@ fn rotate_keys_rejects_unknown_did() {
     new_test_ext().execute_with(|| {
         let keys: BoundedVec<DidKeyRef, _> = BoundedVec::default();
         assert_noop!(
-            Identity::rotate_keys(RuntimeOrigin::signed(1), test_did(), keys),
+            Identity::rotate_keys(RuntimeOrigin::signed(account(1)), test_did(), keys),
             Error::<Test>::NotFound
         );
     });
@@ -129,7 +129,7 @@ fn rotate_keys_rejects_unknown_did() {
 #[test]
 fn update_revocation_works() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Identity::update_revocation(RuntimeOrigin::signed(1), [7u8; 32]));
+        assert_ok!(Identity::update_revocation(RuntimeOrigin::signed(account(1)), [7u8; 32]));
 
         assert_eq!(Identity::revocation_accumulator(), [7u8; 32]);
         assert_eq!(<Identity as DidRegistry>::revocation_accumulator(), [7u8; 32]);
@@ -141,7 +141,7 @@ fn update_revocation_works() {
 fn update_revocation_rejects_non_issuer() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Identity::update_revocation(RuntimeOrigin::signed(2), [8u8; 32]),
+            Identity::update_revocation(RuntimeOrigin::signed(account(2)), [8u8; 32]),
             frame_support::error::BadOrigin
         );
     });
@@ -150,10 +150,10 @@ fn update_revocation_rejects_non_issuer() {
 #[test]
 fn register_issuer_works_via_governance() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Identity::register_issuer(RuntimeOrigin::root(), 42u64));
+        assert_ok!(Identity::register_issuer(RuntimeOrigin::root(), account(42)));
 
-        assert!(Identity::is_accredited_issuer(&42u64));
-        System::assert_last_event(Event::IssuerRegistered { who: 42u64 }.into());
+        assert!(Identity::is_accredited_issuer(&account(42)));
+        System::assert_last_event(Event::IssuerRegistered { who: account(42) }.into());
     });
 }
 
@@ -161,7 +161,7 @@ fn register_issuer_works_via_governance() {
 fn register_issuer_rejects_non_governance() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Identity::register_issuer(RuntimeOrigin::signed(1), 42u64),
+            Identity::register_issuer(RuntimeOrigin::signed(account(1)), account(42)),
             frame_support::error::BadOrigin
         );
     });

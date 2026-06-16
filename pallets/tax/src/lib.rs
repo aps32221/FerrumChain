@@ -139,7 +139,11 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// 電子發票已錨定。Invoice anchored on-chain.
-        InvoiceAnchored { invoice_hash: Hash32, issuer: T::AccountId, kind: TaxKind },
+        ///
+        /// `issuer` is the fixed `ferrum_primitives::AccountId` embedded in
+        /// [`InvoiceAnchor`] (not `T::AccountId`) — `InvoiceAnchor` carries a
+        /// concrete account id regardless of the runtime's account type.
+        InvoiceAnchored { invoice_hash: Hash32, issuer: ferrum_primitives::AccountId, kind: TaxKind },
         /// 預扣稅額已記錄。Withholding recorded for a subject.
         Withheld { subject: Did, kind: TaxKind, amount: FiatAmount },
         /// 稅務義務已申報（基本申報免費，§08）。

@@ -1,0 +1,61 @@
+[workspace]
+resolver = "2"
+members = [
+  "bls12_377",
+  "bls12_381",
+  "bw6_761",
+  "ed_on_bls12_377",
+  "ed_on_bls12_381_bandersnatch",
+]
+
+[workspace.package]
+version = "0.4.2"
+authors = [
+  "Parity Technologies <admin@parity.io>",
+  "Achim Schneider <achim@parity.io>",
+  "Davide Galassi <davxy@datawok.net>"
+]
+repository = "https://github.com/paritytech/arkworks-substrate"
+keywords = ["cryptography", "elliptic-curves", "pairing", "arkworks", "substrate"]
+categories = ["cryptography"]
+include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+license = "MIT/Apache-2.0"
+edition = "2021"
+
+[workspace.dependencies]
+ark-std = { version = "0.4.0", default-features = false }
+ark-bls12-377-ext = { version = "0.4.1", default-features = false }
+ark-bls12-381-ext = { version = "0.4.1", default-features = false }
+ark-bw6-761-ext = { version = "0.4.1", default-features = false }
+ark-ed-on-bls12-377-ext = { version = "0.4.1", default-features = false }
+ark-ed-on-bls12-381-bandersnatch-ext = { version = "0.4.1", default-features = false }
+sp-crypto-ec-utils =  { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+ark-algebra-test-templates = { version = "0.4.2", default-features = false }
+ark-ff = { version = "0.4.2", default-features = false }
+ark-ec = { version = "0.4.2", default-features = false }
+ark-serialize = { version = "0.4.2", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+incremental = true
+panic = 'abort'
+
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = "thin"
+incremental = true
+debug-assertions = false
+
+[profile.dev]
+opt-level = 0
+panic = 'abort'
+
+[profile.test]
+opt-level = 3
+lto = "thin"
+incremental = true
+debug-assertions = true
+debug = true

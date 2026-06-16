@@ -139,7 +139,6 @@ pub fn verify(
 mod tests {
     use super::*;
     use ark_bls12_381::Fr as TestFr;
-    use ark_ff::Field;
     use ark_groth16::Groth16;
     use ark_relations_test::AgeCircuit;
     use ark_snark::SNARK;

@@ -1,12 +1,13 @@
-[package]
+﻿[package]
 name = "pallet-tax"
 version = { workspace = true }
 authors = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 homepage = { workspace = true }
-description = "Ferrum 鐵鏈 — tax administration pallet: e-invoice anchoring, withholding, ZK bracket proofs, authorized audit (whitepaper §06)"
+description = "Ferrum ?菟? ??tax administration pallet: e-invoice anchoring, withholding, ZK bracket proofs, authorized audit (whitepaper 禮06)"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

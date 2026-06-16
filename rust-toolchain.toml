@@ -1,8 +1,14 @@
 # Pinned toolchain for the whole Ferrum workspace.
 # polkadot-stable2412 builds cleanly on this channel. Module authors MUST NOT
 # override this; the WASM target is required for the runtime build.
+#
+# NOTE: 1.81.0 predates the stabilization of the 2024 edition (Rust 1.85).
+# Several transitive deps in the node/wasmtime tree (rpassword, security-framework,
+# wit-bindgen, …) have since adopted edition2024, which a 1.81 cargo cannot parse.
+# We therefore build on a current stable (>= 1.85). MSRV is a floor, not a ceiling;
+# polkadot-stable2412 compiles cleanly on newer stable.
 [toolchain]
-channel = "1.81.0"
+channel = "1.95.0"
 components = ["rustfmt", "clippy", "rust-src"]
 targets = ["wasm32-unknown-unknown"]
 profile = "minimal"

@@ -14,7 +14,7 @@ fn test_subject() -> Did {
 fn test_anchor(payload_hash: [u8; 32]) -> CredentialAnchor {
     CredentialAnchor {
         subject: test_subject(),
-        issuer: 1u64,
+        issuer: issuer_account(),
         kind: CredentialKind::Age,
         payload_hash,
         status: CredentialStatus::Active,
@@ -25,9 +25,10 @@ fn test_anchor(payload_hash: [u8; 32]) -> CredentialAnchor {
 #[test]
 fn issue_works_and_emits_event() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         let anchor = test_anchor([1u8; 32]);
 
-        assert_ok!(Credential::issue(RuntimeOrigin::signed(1), anchor.clone()));
+        assert_ok!(Credential::issue(RuntimeOrigin::signed(issuer_account()), anchor.clone()));
 
         assert_eq!(Credential::credentials([1u8; 32]).unwrap(), anchor);
         assert_eq!(Credential::by_subject(test_subject()).into_inner(), vec![[1u8; 32]]);
@@ -35,7 +36,7 @@ fn issue_works_and_emits_event() {
         System::assert_last_event(
             Event::CredentialIssued {
                 subject: test_subject(),
-                issuer: 1u64,
+                issuer: issuer_account(),
                 payload_hash: [1u8; 32],
             }
             .into(),
@@ -46,9 +47,10 @@ fn issue_works_and_emits_event() {
 #[test]
 fn issue_rejects_non_issuer_origin() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         let anchor = test_anchor([2u8; 32]);
         assert_noop!(
-            Credential::issue(RuntimeOrigin::signed(2), anchor),
+            Credential::issue(RuntimeOrigin::signed(other_account()), anchor),
             frame_support::error::BadOrigin
         );
     });
@@ -57,10 +59,11 @@ fn issue_rejects_non_issuer_origin() {
 #[test]
 fn issue_rejects_duplicate_payload_hash() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         let anchor = test_anchor([3u8; 32]);
-        assert_ok!(Credential::issue(RuntimeOrigin::signed(1), anchor.clone()));
+        assert_ok!(Credential::issue(RuntimeOrigin::signed(issuer_account()), anchor.clone()));
         assert_noop!(
-            Credential::issue(RuntimeOrigin::signed(1), anchor),
+            Credential::issue(RuntimeOrigin::signed(issuer_account()), anchor),
             Error::<Test>::CredentialAlreadyExists
         );
     });
@@ -69,10 +72,11 @@ fn issue_rejects_duplicate_payload_hash() {
 #[test]
 fn revoke_works() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         let anchor = test_anchor([4u8; 32]);
-        assert_ok!(Credential::issue(RuntimeOrigin::signed(1), anchor));
+        assert_ok!(Credential::issue(RuntimeOrigin::signed(issuer_account()), anchor));
 
-        assert_ok!(Credential::revoke(RuntimeOrigin::signed(1), [4u8; 32]));
+        assert_ok!(Credential::revoke(RuntimeOrigin::signed(issuer_account()), [4u8; 32]));
 
         assert_eq!(
             Credential::credentials([4u8; 32]).unwrap().status,
@@ -85,8 +89,9 @@ fn revoke_works() {
 #[test]
 fn revoke_unknown_credential_fails() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         assert_noop!(
-            Credential::revoke(RuntimeOrigin::signed(1), [9u8; 32]),
+            Credential::revoke(RuntimeOrigin::signed(issuer_account()), [9u8; 32]),
             Error::<Test>::CredentialNotFound
         );
     });
@@ -95,11 +100,12 @@ fn revoke_unknown_credential_fails() {
 #[test]
 fn set_status_works() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         let anchor = test_anchor([5u8; 32]);
-        assert_ok!(Credential::issue(RuntimeOrigin::signed(1), anchor));
+        assert_ok!(Credential::issue(RuntimeOrigin::signed(issuer_account()), anchor));
 
         assert_ok!(Credential::set_status(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::signed(issuer_account()),
             [5u8; 32],
             CredentialStatus::Suspended
         ));
@@ -121,10 +127,11 @@ fn set_status_works() {
 #[test]
 fn log_presentation_works_and_prevents_replay() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
         let nullifier = [7u8; 32];
         let commitment = [8u8; 32];
 
-        assert_ok!(Credential::log_presentation(RuntimeOrigin::signed(2), nullifier, commitment));
+        assert_ok!(Credential::log_presentation(RuntimeOrigin::signed(other_account()), nullifier, commitment));
 
         assert_eq!(Credential::presentations(nullifier).unwrap(), commitment);
         System::assert_last_event(
@@ -133,7 +140,7 @@ fn log_presentation_works_and_prevents_replay() {
 
         // Replay with the same nullifier must fail.
         assert_noop!(
-            Credential::log_presentation(RuntimeOrigin::signed(2), nullifier, commitment),
+            Credential::log_presentation(RuntimeOrigin::signed(other_account()), nullifier, commitment),
             Error::<Test>::PresentationAlreadyLogged
         );
     });

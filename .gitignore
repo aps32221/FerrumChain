@@ -1,7 +1,12 @@
 # Rust / Cargo build artifacts
 /target/
 **/target/
-Cargo.lock
+# NOTE: Cargo.lock IS committed on purpose. The pinned toolchain is Rust 1.81.0,
+# and several transitive crates have since published versions requiring
+# edition2024 / rustc >= 1.82 (indexmap, getrandom, base64ct, blake2b_simd,
+# zeroize_derive, backtrace, cxx, ed25519-zebra, tempfile, proc-macro-crate…).
+# The lockfile pins them to their last 1.81-compatible releases; a fresh
+# `cargo update` of those would re-break the build. Do not ignore Cargo.lock.
 
 # Substrate / node local data
 .chain-data/

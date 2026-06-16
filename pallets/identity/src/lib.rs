@@ -80,7 +80,7 @@ pub mod pallet {
     /// Each associated type is documented; the runtime wires governance,
     /// issuer origins and the event system through these.
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config<AccountId = ferrum_primitives::AccountId> {
         /// 執行時事件型別。The runtime's aggregated event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -107,11 +107,13 @@ pub mod pallet {
     /// 主索引：DID -> 文件錨點（含 `doc_hash`，無個資）。
     /// Primary index: DID -> document anchor (holds `doc_hash`, no PII).
     #[pallet::storage]
+    #[pallet::getter(fn dids)]
     pub type Dids<T: Config> = StorageMap<_, Blake2_128Concat, Did, DidDocument, OptionQuery>;
 
     /// 反向索引：控制帳戶 -> DID，方便依帳戶查詢其 DID（§05）。
     /// Reverse index: controller account -> DID, for account-keyed lookups (§05).
     #[pallet::storage]
+    #[pallet::getter(fn did_by_controller)]
     pub type DidByController<T: Config> =
         StorageMap<_, Blake2_128Concat, T::AccountId, Did, OptionQuery>;
 
@@ -119,6 +121,7 @@ pub mod pallet {
     /// Global revocation-accumulator commitment, advanced on every
     /// `update_revocation` (§05).
     #[pallet::storage]
+    #[pallet::getter(fn revocation_accumulator)]
     pub type RevocationAccumulator<T: Config> = StorageValue<_, Commitment, ValueQuery>;
 
     /// 受認證簽發機構名冊：帳戶 -> 是否獲准簽發 DID 文件（§05）。
@@ -219,7 +222,8 @@ pub mod pallet {
                 let doc = maybe_doc.as_mut().ok_or(Error::<T>::NotFound)?;
                 ensure!(doc.controller == who, Error::<T>::NotController);
                 doc.keys = keys.clone();
-                doc.anchored_at = frame_system::Pallet::<T>::block_number();
+                doc.anchored_at =
+                    sp_runtime::SaturatedConversion::saturated_into(frame_system::Pallet::<T>::block_number());
                 Ok(())
             })?;
 

@@ -263,8 +263,10 @@ pub mod pallet {
             .map_err(|_| Error::<T>::InsufficientBalance)?;
 
             // 銷毀後對應供給亦從帳本移除。
-            // The withdrawn supply is removed from the issuable total.
-            T::Currency::burn(amount);
+            // The withdrawn supply is removed from the issuable total. The
+            // returned imbalance is dropped on purpose: dropping a negative
+            // imbalance from `burn` is what actually reduces total issuance.
+            drop(T::Currency::burn(amount));
 
             let total_burned = TotalBurned::<T>::mutate(|t| {
                 *t = t.saturating_add(amount);

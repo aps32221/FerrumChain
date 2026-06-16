@@ -25,7 +25,9 @@ mod benchmarks {
         let caller: T::AccountId = whitelisted_caller();
         let anchor = InvoiceAnchor {
             invoice_hash: [1u8; 32],
-            issuer: caller.clone(),
+            // `InvoiceAnchor::issuer` is the fixed `ferrum_primitives::AccountId`,
+            // independent of the benchmark runtime's `T::AccountId`.
+            issuer: ferrum_primitives::AccountId::new([1u8; 32]),
             kind: TaxKind::ValueAdded,
             anchored_at: 0,
         };

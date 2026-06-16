@@ -85,6 +85,13 @@ Key exports you will consume:
 `FER, FER_DECIMALS, MIN_VALIDATOR_BOND, SLOT_DURATION_MS, MAX_AUTHORITIES,`
 `domain_threshold, domain()`.
 
+§09 cross-border additions (sections 10–11 of the crate): `GrandpaAuthority,`
+`GrandpaAuthoritySet, SignedPrecommit, GrandpaFinalityProof, GrandpaAuthorityId,`
+`GrandpaSignatureBytes, BoundedVkBytes, MAX_GRANDPA_AUTHORITIES, MAX_PRECOMMITS,`
+`MAX_VK_LEN, DidResolution, CreditMethod, TaxTreaty, OssRegistration`. The
+GRANDPA proof types are SCALE-only (no `serde` derive — `[u8; 64]` has no serde
+impl); they are consumed by `pallet-interop`'s on-chain light client.
+
 ---
 
 ## 2. `ferrum-zk` — Zero-knowledge crate (§05)
@@ -312,38 +319,52 @@ Key exports you will consume:
 
 ---
 
-## 8. `pallet-interop` — Cross-border bridge & clearing (§09–§10)
+## 8. `pallet-interop` — Cross-border bridge & clearing (§09–§10) — IMPLEMENTED
 
-- **Crate / path:** `pallet-interop` / `pallets/interop`
-- **Purpose:** XCM-style cross-consensus messaging verified via GRANDPA finality
-  proofs (no trusted custodian), cross-chain DID/issuer trust registry, and XSU
-  multilateral netting / CBDC settlement (§09 Flow E, §10).
-- **Required storage:**
-  - `TrustRegistry: StorageMap<_, Blake2_128Concat, (CountryId, Hash32), TrustRegistryEntry>`
-  - `Instructions: StorageMap<_, Blake2_128Concat, u64, ClearingInstruction>`
-  - `NetPositions: StorageMap<_, Blake2_128Concat, (CountryId, CountryId), XsuAmount>`
-  - `NextInstruction: StorageValue<_, u64, ValueQuery>`
-- **Required extrinsics:**
-  ```rust
-  pub fn register_issuer(origin, entry: TrustRegistryEntry) -> DispatchResult; // federation-governed
-  pub fn submit_instruction(origin, instr: ClearingInstruction) -> DispatchResult;
-  pub fn verify_finality(origin, id: u64, finality_proof: BoundedVec<u8, ConstU32<4096>>) -> DispatchResult;
-  pub fn net_and_settle(origin, window: u32) -> DispatchResult;   // multilateral netting
-  ```
+Full §09 implementation. The three §09 capability groups map to this pallet as
+follows (each row is wired, tested, and links end-to-end in the release build):
+
+| §09 whitepaper capability | Where | Mechanism |
+|---|---|---|
+| Trust-minimized bridging (light client, GRANDPA finality, no custodian) | `src/grandpa.rs` + `verify_finality` / `init_authority_set` / `rotate_authority_set` | Real `GrandpaFinalityProof` decode → `sp-consensus-grandpa::check_message_signature` per precommit (ed25519) → require valid weight **> 2/3** of the recognized authority set; light-client head advances monotonically; set handoff verifies the handoff block under the current set then adopts `set_id + 1` |
+| Cross-border identity recognition (trust registry, cross-chain DID resolution) | `TrustRegistry` (double map) + `register_issuer` + `resolve_did` | Local DIDs resolve via `T::DidRegistry` (identity pallet); foreign DIDs return source `CountryId` + trust-registry recognition |
+| Cross-border ZK verification (verify abroad with registered keys, no PII) | `register_issuer_vk` + `verify_foreign_proof` + `ForeignVerifyingKeys` / `UsedNullifiers` | Groth16 verify via `ferrum-zk` against the recognized issuer's registered VK; nullifier replay protection |
+| Double-tax relief (tax-treaty registry) | `register_treaty` + `treaty_for` + `TaxTreaties` | Bilateral `TaxTreaty { withholding_cap, method }`, resolvable in either direction |
+| Cross-border e-invoice recognition | `recognize_foreign_invoice` + `RecognizedInvoices` | Recognizes a foreign invoice hash only after finality with the source chain is established |
+| Cross-border VAT/GST (One-Stop-Shop) | `oss_register` / `oss_report` + `OssRegistrations` | OSS registration; reporting allocates revenue to the destination country by producing a clearing instruction into the netting pipeline |
+| Multilateral netting / CBDC settlement (§10) | `submit_instruction` / `net_and_settle` + `NetPositions` | XSU-priced instructions netted by `(from, to)` |
+| Interop validator staking & cross-slash (§10/§11.1) | `register_validator` / `slash_validator` + `InteropValidators` | National-FER bonds, federation-governed slashing |
+
+- **Crate / path:** `pallet-interop` / `pallets/interop` (+ `src/grandpa.rs`)
+- **Key storage:** `TrustRegistry` (now a **`StorageDoubleMap<CountryId, Hash32, TrustRegistryEntry>`** for country-prefix queries), `GrandpaAuthoritySets`, `FinalizedHeads`, `ForeignVerifyingKeys`, `UsedNullifiers`, `TaxTreaties`, `RecognizedInvoices`, `OssRegistrations`, `Instructions`, `NetPositions`, `NextInstruction`, `InteropValidators`, `TotalSlashed`.
+- **Extrinsics (call indices):** `register_issuer`(0), `submit_instruction`(1),
+  `verify_finality`(2), `net_and_settle`(3), `register_validator`(4),
+  `slash_validator`(5), `init_authority_set`(6), `rotate_authority_set`(7),
+  `register_issuer_vk`(8), `verify_foreign_proof`(9), `register_treaty`(10),
+  `recognize_foreign_invoice`(11), `oss_register`(12), `oss_report`(13).
 - **Config trait:**
   ```rust
   pub trait Config: frame_system::Config {
       type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
       type FederationOrigin: EnsureOrigin<Self::RuntimeOrigin>; // treaty council
       type RelayerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+      type DidRegistry: pallet_identity_fer::DidRegistry;        // universal DID resolver
+      type LocalChainTag: Get<BoundedVec<u8, ConstU32<MAX_TAG_LEN>>>; // routes local vs foreign
       type WeightInfo: WeightInfo;
   }
   ```
 - **Consumes from primitives:** `CountryId, TrustRegistryEntry, ClearingInstruction,
-  XcmStatus, XsuAmount, Commitment, Hash32`.
-- **Cross-module deps:** `pallet-federation` (basket weights, members),
-  `ferrum-zk` (verify cross-border selective-disclosure proofs),
-  `pallet-identity-fer`/`pallet-credential` (cross-chain DID & issuer recognition).
+  XcmStatus, XsuAmount, Commitment, Hash32, Hash, BlockNumber, Did, DidResolution,
+  GrandpaAuthoritySet, GrandpaFinalityProof, SignedPrecommit, BoundedVkBytes,
+  Nullifier, TaxTreaty, CreditMethod, OssRegistration, AgeProofPublicInputs, ProofBytes`.
+- **External deps:** `sp-consensus-grandpa` + `finality-grandpa` (GRANDPA proof
+  verification), `ferrum-zk` (cross-border selective-disclosure proofs),
+  `pallet-identity-fer` (`DidRegistry` trait for cross-chain DID resolution),
+  `pallet-federation` (basket weights, members).
+- **Conservatism note (§09):** GRANDPA verification counts only precommits whose
+  target equals the commit target (descendant votes, which need an ancestry
+  proof, are ignored). This can only *under*-count weight — it never accepts a
+  non-finalized block. Ancestry-proof support is a future enhancement.
 
 ---
 
@@ -366,7 +387,8 @@ stable so the runtime can wire them without churn.
 ## 10. Substrate version string — copy into your `Cargo.toml`
 
 > **polkadot-sdk @ git tag `polkadot-stable2412`** — referenced ONLY via
-> `{ workspace = true }`. Rust toolchain: **1.81.0** (see `rust-toolchain.toml`),
-> WASM target `wasm32-unknown-unknown`.
+> `{ workspace = true }`. Rust toolchain: **1.95.0** (see `rust-toolchain.toml`;
+> MSRV floor `1.81`, but the workspace builds on the newer pinned stable because
+> transitive deps now require edition2024), WASM target `wasm32-unknown-unknown`.
 
 Any deviation breaks the single-`Cargo.lock` guarantee and will be rejected.

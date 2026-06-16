@@ -1,9 +1,10 @@
-[package]
+﻿[package]
 name        = "ferrum-primitives"
 description = "Shared, no_std primitive types for the Ferrum 鐵鏈 runtime and all pallets."
 version     = { workspace = true }
 authors     = { workspace = true }
 edition     = { workspace = true }
+rust-version = { workspace = true }
 license     = { workspace = true }
 repository  = { workspace = true }
 homepage    = { workspace = true }

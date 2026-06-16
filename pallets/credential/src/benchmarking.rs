@@ -3,7 +3,6 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::*;
 use crate::pallet::{Call, Config, Credentials, Pallet, Presentations};
 use ferrum_primitives::{CredentialAnchor, CredentialKind, CredentialStatus, Did};
 use frame_benchmarking::v2::*;

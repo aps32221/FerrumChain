@@ -3,11 +3,10 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::*;
 use crate::pallet::{Call, Config, Dids, Pallet, RevocationAccumulator};
 use ferrum_primitives::{Did, DidDocument};
 use frame_benchmarking::v2::*;
-use frame_support::BoundedVec;
+use frame_support::{traits::EnsureOrigin, BoundedVec};
 use frame_system::RawOrigin;
 
 fn bench_did() -> Did {

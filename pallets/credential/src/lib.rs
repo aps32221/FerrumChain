@@ -40,7 +40,7 @@ pub mod pallet {
     pub const MAX_CREDENTIALS_PER_SUBJECT: u32 = 64;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config<AccountId = ferrum_primitives::AccountId> {
         /// 事件型別 / The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -62,12 +62,14 @@ pub mod pallet {
     /// 憑證錨點：以憑證簽章內容雜湊 (payload_hash) 為鍵。
     /// Credential anchors keyed by the issuer-signed payload hash.
     #[pallet::storage]
+    #[pallet::getter(fn credentials)]
     pub type Credentials<T: Config> =
         StorageMap<_, Blake2_128Concat, Hash32, CredentialAnchor, OptionQuery>;
 
     /// 依主體 DID 索引的憑證雜湊列表（上限 64 筆）。
     /// Index of credential payload hashes by subject DID (bounded to 64).
     #[pallet::storage]
+    #[pallet::getter(fn by_subject)]
     pub type BySubject<T: Config> = StorageMap<
         _,
         Blake2_128Concat,
@@ -80,6 +82,7 @@ pub mod pallet {
     /// One-time, replay-protected selective-disclosure presentation log:
     /// nullifier -> disclosure commitment.
     #[pallet::storage]
+    #[pallet::getter(fn presentations)]
     pub type Presentations<T: Config> =
         StorageMap<_, Blake2_128Concat, Nullifier, Commitment, OptionQuery>;
 

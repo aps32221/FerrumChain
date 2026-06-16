@@ -20,7 +20,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
+    traits::{BlakeTwo256, IdentifyAccount, Saturating, Verify},
     BoundedVec, MultiSignature, Perbill,
 };
 
@@ -355,7 +355,7 @@ impl XsuBasket {
 
 /// An amount denominated in **XSU** (cross-border obligations are priced here, §10).
 /// Integer minor units with [`XSU_DECIMALS`] precision.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct XsuAmount(pub u128);
 
@@ -507,6 +507,161 @@ pub type ProofBytes = BoundedVec<u8, ConstU32<2048>>;
 
 /// Opaque serialized verifying key bytes (arkworks `PreparedVerifyingKey`).
 pub type VerifyingKeyBytes = Vec<u8>;
+
+// ============================================================================
+// 10. GRANDPA light-client finality proofs (whitepaper §09 trust-minimized bridging)
+// ----------------------------------------------------------------------------
+// A sovereign-chain federation bridges trust-minimally: each chain runs an
+// on-chain light client of its peers and verifies their GRANDPA finality proofs
+// before accepting cross-border messages. The shapes below are pure SCALE data
+// types (no crypto deps); the cryptographic verification lives in
+// `pallet-interop` (`grandpa.rs`), which depends on `sp-consensus-grandpa` +
+// `finality-grandpa`. Every federated chain is a Ferrum chain, so the bridged
+// block hash is `Hash` (H256) and the block number is `BlockNumber` (u32) —
+// exactly the types the foreign GRANDPA voters signed their precommits over.
+// ============================================================================
+
+/// Max GRANDPA authorities tracked per bridged chain (mirrors `MAX_AUTHORITIES`).
+pub const MAX_GRANDPA_AUTHORITIES: u32 = MAX_AUTHORITIES;
+
+/// Max precommits carried in a single finality proof.
+pub const MAX_PRECOMMITS: u32 = MAX_AUTHORITIES;
+
+/// Max serialized Groth16 verifying-key length stored on-chain, in bytes (§09).
+pub const MAX_VK_LEN: u32 = 4096;
+
+/// A raw ed25519 GRANDPA authority public key (32 bytes).
+pub type GrandpaAuthorityId = [u8; 32];
+
+/// A raw ed25519 signature (64 bytes).
+pub type GrandpaSignatureBytes = [u8; 64];
+
+/// Bounded verifying-key bytes as stored on-chain (§09 cross-border ZK verify).
+pub type BoundedVkBytes = BoundedVec<u8, ConstU32<MAX_VK_LEN>>;
+
+/// A GRANDPA authority and its vote weight (§09).
+#[derive(Clone, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct GrandpaAuthority {
+    /// ed25519 public key of the authority.
+    pub id: GrandpaAuthorityId,
+    /// Vote weight of this authority.
+    pub weight: u64,
+}
+
+/// The recognized GRANDPA authority set of a bridged sovereign chain (§09).
+///
+/// `set_id` is GRANDPA's monotonic authority-set identifier; it increments on
+/// every authority-set handoff and is bound into every precommit signature.
+#[derive(Clone, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct GrandpaAuthoritySet {
+    /// Authorities and their weights for this set.
+    pub authorities: BoundedVec<GrandpaAuthority, ConstU32<MAX_GRANDPA_AUTHORITIES>>,
+    /// Monotonic GRANDPA set id.
+    pub set_id: u64,
+}
+
+impl GrandpaAuthoritySet {
+    /// Total vote weight across all authorities.
+    pub fn total_weight(&self) -> u64 {
+        self.authorities.iter().fold(0u64, |a, x| a.saturating_add(x.weight))
+    }
+}
+
+/// A single signed GRANDPA precommit inside a [`GrandpaFinalityProof`] (§09).
+///
+/// SCALE-only (an extrinsic/storage type, never genesis-serialized): the 64-byte
+/// `signature` has no `serde` impl, so we do not derive `Serialize`/`Deserialize`.
+#[derive(Clone, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+pub struct SignedPrecommit {
+    /// Hash of the block this authority precommitted to.
+    pub target_hash: Hash,
+    /// Number of that block.
+    pub target_number: BlockNumber,
+    /// The precommitting authority's ed25519 public key.
+    pub authority: GrandpaAuthorityId,
+    /// ed25519 signature over the GRANDPA-localized precommit payload.
+    pub signature: GrandpaSignatureBytes,
+}
+
+/// A self-contained GRANDPA finality proof for a bridged Ferrum chain (§09).
+///
+/// `pallet-interop::verify_finality` SCALE-decodes the on-chain proof blob into
+/// this type and verifies that authorities carrying **> 2/3 of total weight**
+/// validly precommitted to `(target_hash, target_number)` under `set_id`/`round`.
+///
+/// SCALE-only (see [`SignedPrecommit`]): no `serde` derive.
+#[derive(Clone, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+pub struct GrandpaFinalityProof {
+    /// GRANDPA round in which the commit was formed.
+    pub round: u64,
+    /// Authority-set id the precommits were signed under (must match on-chain).
+    pub set_id: u64,
+    /// The finalized (commit-target) block hash.
+    pub target_hash: Hash,
+    /// The finalized block number.
+    pub target_number: BlockNumber,
+    /// Signed precommits backing the commit target.
+    pub precommits: BoundedVec<SignedPrecommit, ConstU32<MAX_PRECOMMITS>>,
+}
+
+// ============================================================================
+// 11. Cross-border identity resolution + tax coordination (whitepaper §09)
+// ============================================================================
+
+/// Result of resolving a (possibly foreign) `did:fer` via the universal
+/// resolver (§09 cross-chain DID resolution). Identifiers carry a source-chain
+/// tag by design, so the resolver can route local vs. foreign resolution.
+#[derive(Clone, Eq, PartialEq, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum DidResolution {
+    /// DID is anchored on the local chain; the resolved document is returned.
+    Local(DidDocument),
+    /// DID is local-tagged but not anchored.
+    LocalUnknown,
+    /// DID is foreign: resolution happens on its source chain. `recognized`
+    /// reports whether that chain has a recognized issuer in the cross-chain
+    /// trust registry (§09 mutual issuer recognition).
+    Foreign { country: CountryId, recognized: bool },
+}
+
+/// Double-tax relief method applied by the residence state (§09 double-tax relief).
+#[derive(Clone, Copy, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum CreditMethod {
+    /// Foreign tax credited against domestic liability.
+    Credit,
+    /// Foreign-sourced income exempt domestically.
+    Exemption,
+}
+
+/// An on-chain bilateral tax-treaty entry (§09 tax-treaty registry).
+#[derive(Clone, Copy, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TaxTreaty {
+    /// Cap on the cross-border withholding rate the source state may levy.
+    pub withholding_cap: Perbill,
+    /// Double-tax relief method applied by the residence state.
+    pub method: CreditMethod,
+    /// Whether the treaty is currently in force.
+    pub active: bool,
+}
+
+/// A One-Stop-Shop (OSS) VAT registration for cross-border digital services (§09).
+///
+/// Cross-border digital services register/file at a single entry point; revenue
+/// is allocated by destination via the clearing union (§09 cross-border VAT/GST).
+#[derive(Clone, Eq, PartialEq, Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct OssRegistration {
+    /// Member state of registration (the single OSS entry point).
+    pub home: CountryId,
+    /// Commitment to the supplier's VAT identifier (never PII on-chain).
+    pub vat_id_commitment: Commitment,
+    /// Whether the registration is active.
+    pub active: bool,
+}
 
 #[cfg(test)]
 mod tests {

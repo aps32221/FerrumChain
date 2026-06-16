@@ -81,20 +81,20 @@ pub fn verify(
 /// threshold"; it is a toy circuit for tests, not the production circuit.
 #[cfg(test)]
 pub(crate) mod tests_support {
-    use ark_ff::Field;
+    use ark_ff::PrimeField;
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
     use ark_r1cs_std::fields::fp::FpVar;
     use ark_r1cs_std::prelude::*;
 
     /// `age = threshold + diff`
     #[derive(Clone)]
-    pub struct AgeCircuit<F: Field> {
+    pub struct AgeCircuit<F: PrimeField> {
         pub age: Option<F>,
         pub threshold: Option<F>,
         pub diff: Option<F>,
     }
 
-    impl<F: Field> ConstraintSynthesizer<F> for AgeCircuit<F> {
+    impl<F: PrimeField> ConstraintSynthesizer<F> for AgeCircuit<F> {
         fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
             // Public inputs.
             let age_var = FpVar::new_input(cs.clone(), || {
@@ -122,6 +122,7 @@ mod tests {
     use ark_bls12_381::Fr as TestFr;
     use ark_groth16::Groth16;
     use ark_serialize::CanonicalSerialize;
+    use ark_snark::SNARK;
     use ark_std::rand::{rngs::StdRng, SeedableRng};
 
     use self::tests_support::AgeCircuit;

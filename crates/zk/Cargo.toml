@@ -1,9 +1,10 @@
-[package]
+﻿[package]
 name = "ferrum-zk"
-description = "Ferrum 鐵鏈 — zero-knowledge selective-disclosure proofs (age, tax-bracket, BBS+) — § 04/§05"
+description = "Ferrum tieh lien -- zero-knowledge selective-disclosure proofs (age, tax-bracket, BBS+), whitepaper sec 04/05"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -24,7 +25,7 @@ sp-core    = { workspace = true }
 sp-std     = { workspace = true }
 sp-runtime = { workspace = true }
 
-# --- arkworks Groth16 over BLS12-381 (whitepaper §04/§05) -------------------
+# --- arkworks Groth16 over BLS12-381 (whitepaper sec 04/05) -----------------
 ark-bls12-381 = { workspace = true }
 ark-ff        = { workspace = true }
 ark-ec        = { workspace = true }
@@ -52,7 +53,7 @@ std = [
     "ark-std/std",
     "blake2/std",
 ]
-# No FRAME runtime here (plain library crate, §05) — passthroughs kept for
+# No FRAME runtime here (plain library crate, sec 05) -- passthroughs kept for
 # workspace-wide feature unification only.
 runtime-benchmarks = []
 try-runtime = []

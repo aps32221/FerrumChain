@@ -1,0 +1,76 @@
+﻿[package]
+name = "ferrum-node"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+description = "Ferrum 鐵鏈 sovereign node: Aura authoring + GRANDPA finality over libp2p/tokio/RocksDB (whitepaper §04/§07)"
+build = "build.rs"
+
+[[bin]]
+name = "ferrum-node"
+path = "src/main.rs"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+clap = { workspace = true }
+futures = { workspace = true }
+jsonrpsee = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+
+# --- Client (std) -----------------------------------------------------------
+sc-cli = { workspace = true }
+sc-service = { workspace = true }
+sc-executor = { workspace = true }
+sc-network = { workspace = true }
+sc-consensus = { workspace = true }
+sc-consensus-aura = { workspace = true }
+sc-consensus-grandpa = { workspace = true }
+sc-client-api = { workspace = true }
+sc-transaction-pool = { workspace = true }
+sc-transaction-pool-api = { workspace = true }
+sc-basic-authorship = { workspace = true }
+sc-offchain = { workspace = true }
+sc-telemetry = { workspace = true }
+sc-rpc-api = { workspace = true }
+substrate-frame-rpc-system = { workspace = true }
+
+# --- Primitives (std) -------------------------------------------------------
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std"] }
+sp-timestamp = { workspace = true, features = ["std"] }
+sp-inherents = { workspace = true, features = ["std"] }
+sp-keyring = { workspace = true }
+sp-consensus-aura = { workspace = true, features = ["std"] }
+sp-consensus-grandpa = { workspace = true, features = ["std"] }
+sp-api = { workspace = true, features = ["std"] }
+sp-blockchain = { workspace = true }
+sp-block-builder = { workspace = true, features = ["std"] }
+sp-genesis-builder = { workspace = true, features = ["std"] }
+
+# --- Runtime + primitives ---------------------------------------------------
+ferrum-primitives = { workspace = true, features = ["std", "serde"] }
+ferrum-runtime = { workspace = true, features = ["std"] }
+
+# --- Benchmarking CLI (optional) --------------------------------------------
+frame-benchmarking-cli = { workspace = true, optional = true }
+
+[build-dependencies]
+substrate-build-script-utils = { workspace = true }
+
+[features]
+default = []
+runtime-benchmarks = [
+    "frame-benchmarking-cli",
+    "ferrum-runtime/runtime-benchmarks",
+    "sc-service/runtime-benchmarks",
+]
+try-runtime = [
+    "ferrum-runtime/try-runtime",
+]

@@ -1,0 +1,23 @@
+[package]
+name = "sp-ark-bls12-377"
+description = "The BLS12-377 pairing-friendly elliptic curve, optimized for Substrate"
+version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+ark-bls12-377-ext.workspace = true
+sp-crypto-ec-utils = { workspace = true, features = ["bls12-377"] }
+
+[dev-dependencies]
+ark-std.workspace = true
+ark-serialize.workspace = true
+ark-ff.workspace = true 
+ark-algebra-test-templates.workspace = true 
+ark-ec.workspace = true 
+
+[features]
+default = [ "std" ]
+std = [ "ark-bls12-377-ext/std", "sp-crypto-ec-utils/std" ]

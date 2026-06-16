@@ -29,14 +29,23 @@ members = [
     "runtime",
     "node",
 ]
+# The vendored arkworks-substrate fork is its own workspace (see the [patch]
+# section below for why it exists); keep it out of the Ferrum workspace.
+exclude = [
+    "vendor",
+]
 
 [workspace.package]
-authors     = ["Ferrum 鐵鏈 Authors"]
-edition     = "2021"
-license     = "Apache-2.0"
-repository  = "https://github.com/ferrum-chain/ferrum"
-homepage    = "https://ferrum.example"
-version     = "0.1.0"
+authors      = ["Ferrum 鐵鏈 Authors"]
+edition      = "2021"
+license      = "Apache-2.0"
+repository   = "https://github.com/ferrum-chain/ferrum"
+homepage     = "https://ferrum.example"
+version      = "0.1.0"
+# MSRV — drives the MSRV-aware dependency resolver (see .cargo/config.toml).
+# polkadot-stable2412 + its sc-network compile on 1.81; the resolver keeps the
+# transitive tree (ar_archive_writer, wit-bindgen, …) on 1.81-compatible versions.
+rust-version = "1.81"
 
 # ----------------------------------------------------------------------------
 # Shared, PINNED dependencies. Reference these from member crates with
@@ -62,6 +71,7 @@ ferrum-runtime    = { path = "runtime", default-features = false }
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 frame-system  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 frame-executive    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 frame-try-runtime  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 
@@ -77,12 +87,19 @@ pallet-contracts   = { git = "https://github.com/paritytech/polkadot-sdk.git", t
 # Substrate primitives (sp-*).
 sp-core    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-std     = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-storage = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-io      = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-api     = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-consensus-aura    = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-consensus-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+# GRANDPA justification types (Message/Commit/Precommit) used by the on-chain
+# light client in pallet-interop (§09). Pinned to the exact version
+# sp-consensus-grandpa @ polkadot-stable2412 resolves to in Cargo.lock.
+finality-grandpa = { version = "0.16.3", default-features = false, features = ["derive-codec"] }
 sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-offchain  = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-session   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
@@ -91,10 +108,14 @@ sp-version   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "
 sp-keyring   = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412", default-features = false }
 
 # Client-side (node only; std). Pinned to the same tag.
 sc-cli             = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 sc-service         = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+sc-offchain        = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 sc-executor        = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 sc-network         = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 sc-consensus       = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
@@ -106,6 +127,7 @@ sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk.gi
 sc-telemetry       = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 sc-rpc-api         = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
+frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2412" }
 
@@ -131,6 +153,55 @@ futures  = "0.3.30"
 serde    = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false }
 log      = { version = "0.4", default-features = false }
+
+# ----------------------------------------------------------------------------
+# Dependency-resolution pin (transitive, outside our code).
+# ----------------------------------------------------------------------------
+# `sp-core` (polkadot-stable2412) pulls bandersnatch_vrfs -> ring-proof@665f5f5,
+# which declares `fflonk = { git = "https://github.com/w3f/fflonk" }` with NO
+# rev. The w3f/fflonk default branch HEAD has since been restructured and the
+# root package renamed `fflonk` -> `w3f-pcs`, so a fresh resolve fails with
+# "no matching package named `fflonk`". polkadot-sdk's own Cargo.lock froze
+# fflonk at commit 1e854f35 (where the package was still named `fflonk`). We pin
+# polkadot-sdk's own Cargo.lock froze fflonk at commit 1e854f35 (where the root
+# package was still named `fflonk`; today's branch HEAD renamed it `w3f-pcs`).
+# We override the no-rev `git+https://github.com/w3f/fflonk` source with a patch
+# pointing at the `.git` URL of the same repo pinned to that exact good commit.
+# The `.git` suffix makes it a *distinct* source string (satisfying cargo's
+# "patch must point to a different source" rule) while serving the identical,
+# known-good `fflonk` package polkadot-sdk built against. Transitive build
+# dependency only — no Ferrum source depends on fflonk.
+# A `path` patch is unambiguously a *different* source, so cargo accepts it.
+# `vendor/fflonk` is the w3f/fflonk repo checked out at commit 1e854f35 (the
+# exact rev polkadot-sdk's Cargo.lock used).
+# `cid 0.9.0` (via sc-network) requires `core2 = "^0.4"`, but the crate author
+# has since YANKED every published version of `core2` (including the only 0.4.x,
+# 0.4.0). Cargo refuses to freshly resolve a yanked version, so we vendor the
+# exact 0.4.0 source (downloaded from the static crates.io CDN, which still
+# serves yanked crates) and patch crates-io to it. Functionally identical to the
+# version polkadot-sdk's Cargo.lock pinned.
+[patch.crates-io]
+core2 = { path = "vendor/core2" }
+
+[patch."https://github.com/w3f/fflonk"]
+fflonk = { path = "vendor/fflonk" }
+
+# `arkworks-substrate` (pulled transitively via bandersnatch_vrfs -> sp-ark-*)
+# depends on `sp-crypto-ec-utils` from polkadot-sdk's **master** branch with no
+# rev. That master tree contains `polkadot/node/test-sim/src/aux/...`, an
+# NTFS-illegal path (`aux` is a reserved Windows device name), so libgit2 cannot
+# check it out on Windows. The stable2412 tag we already build against does NOT
+# contain that path. We redirect the untagged master source to the stable2412
+# tag. Cargo forbids patching a git source with the same repo, so the redirect
+# lives inside the vendored fork in `vendor/arkworks-substrate` (its single
+# `sp-crypto-ec-utils` dep rewritten to the stable2412 tag). We point every
+# `sp-ark-*` crate at that vendored copy, eliminating the master checkout.
+[patch."https://github.com/paritytech/arkworks-substrate"]
+sp-ark-bls12-377 = { path = "vendor/arkworks-substrate/bls12_377" }
+sp-ark-bls12-381 = { path = "vendor/arkworks-substrate/bls12_381" }
+sp-ark-bw6-761 = { path = "vendor/arkworks-substrate/bw6_761" }
+sp-ark-ed-on-bls12-377 = { path = "vendor/arkworks-substrate/ed_on_bls12_377" }
+sp-ark-ed-on-bls12-381-bandersnatch = { path = "vendor/arkworks-substrate/ed_on_bls12_381_bandersnatch" }
 
 [profile.release]
 panic = "unwind"

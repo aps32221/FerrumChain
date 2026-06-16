@@ -3,11 +3,8 @@
 
 use crate as pallet_tax;
 use crate::pallet::TreasurySettle;
-use ferrum_primitives::{FiatAmount, Hash32};
-use frame_support::{
-    derive_impl,
-    traits::{ConstU64, EnsureOrigin},
-};
+use ferrum_primitives::{AccountId, FiatAmount, Hash32};
+use frame_support::{derive_impl, traits::EnsureOrigin};
 use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchResult};
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -15,7 +12,6 @@ type Block = frame_system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
     pub enum Test {
         System: frame_system,
-        Balances: pallet_balances,
         Tax: pallet_tax,
     }
 );
@@ -23,16 +19,20 @@ frame_support::construct_runtime!(
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
     type Block = Block;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
-    type AccountData = pallet_balances::AccountData<u128>;
 }
 
-#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
-impl pallet_balances::Config for Test {
-    type AccountStore = System;
-    type Balance = u128;
-    type ExistentialDeposit = ConstU64<1>;
+/// 測試用簽署帳戶（32 位元組皆為 `1`）。Test signer account (all-`1` 32-byte id).
+pub fn alice() -> AccountId {
+    AccountId::from([1u8; 32])
+}
+
+/// 測試用授權稽核員帳戶（32 位元組皆為 `9`）。
+///
+/// Test-only authorized-auditor account (all-`9` 32-byte id).
+pub fn auditor() -> AccountId {
+    AccountId::from([9u8; 32])
 }
 
 /// 測試用國庫結算實作：總是成功，不轉移任何代幣（FER 與義務金額分離，§08）。
@@ -40,28 +40,33 @@ impl pallet_balances::Config for Test {
 /// Test-only treasury settlement: always succeeds, no token transfer (the
 /// fiat obligation is settled in eTWD off the network-token ledger, §08).
 pub struct MockTreasury;
-impl TreasurySettle<u64> for MockTreasury {
-    fn settle_fiat(_payer: &u64, _receipt: Hash32, _amount: FiatAmount) -> DispatchResult {
+impl TreasurySettle<AccountId> for MockTreasury {
+    fn settle_fiat(_payer: &AccountId, _receipt: Hash32, _amount: FiatAmount) -> DispatchResult {
         Ok(())
     }
 }
 
-/// 測試用：任何簽署來源皆視為授權稽核員。
+/// 測試用：`auditor()` 簽署來源視為授權稽核員。
 ///
-/// Test-only: any signed origin is treated as an authorized auditor.
+/// Test-only: the `auditor()` signed origin is treated as an authorized
+/// auditor.
 pub struct EnsureAuditor;
-impl EnsureOrigin<frame_system::pallet::RuntimeOrigin<Test>> for EnsureAuditor {
-    type Success = u64;
+impl EnsureOrigin<frame_system::pallet_prelude::OriginFor<Test>> for EnsureAuditor {
+    type Success = AccountId;
 
     fn try_origin(
-        o: frame_system::pallet::RuntimeOrigin<Test>,
-    ) -> Result<Self::Success, frame_system::pallet::RuntimeOrigin<Test>> {
-        frame_system::ensure_signed(o.clone()).map_err(|_| o)
+        o: frame_system::pallet_prelude::OriginFor<Test>,
+    ) -> Result<Self::Success, frame_system::pallet_prelude::OriginFor<Test>> {
+        use frame_system::RawOrigin;
+        match o.clone().into() {
+            Ok(RawOrigin::Signed(who)) if who == auditor() => Ok(who),
+            _ => Err(o),
+        }
     }
 
     #[cfg(feature = "runtime-benchmarks")]
-    fn try_successful_origin() -> Result<frame_system::pallet::RuntimeOrigin<Test>, ()> {
-        Ok(frame_system::RawOrigin::Signed(1).into())
+    fn try_successful_origin() -> Result<frame_system::pallet_prelude::OriginFor<Test>, ()> {
+        Ok(frame_system::RawOrigin::Signed(auditor()).into())
     }
 }
 
@@ -69,17 +74,17 @@ impl EnsureOrigin<frame_system::pallet::RuntimeOrigin<Test>> for EnsureAuditor {
 ///
 /// Test-only: root origin is treated as governance.
 pub struct EnsureGovernance;
-impl EnsureOrigin<frame_system::pallet::RuntimeOrigin<Test>> for EnsureGovernance {
+impl EnsureOrigin<frame_system::pallet_prelude::OriginFor<Test>> for EnsureGovernance {
     type Success = ();
 
     fn try_origin(
-        o: frame_system::pallet::RuntimeOrigin<Test>,
-    ) -> Result<Self::Success, frame_system::pallet::RuntimeOrigin<Test>> {
+        o: frame_system::pallet_prelude::OriginFor<Test>,
+    ) -> Result<Self::Success, frame_system::pallet_prelude::OriginFor<Test>> {
         frame_system::ensure_root(o.clone()).map_err(|_| o)
     }
 
     #[cfg(feature = "runtime-benchmarks")]
-    fn try_successful_origin() -> Result<frame_system::pallet::RuntimeOrigin<Test>, ()> {
+    fn try_successful_origin() -> Result<frame_system::pallet_prelude::OriginFor<Test>, ()> {
         Ok(frame_system::RawOrigin::Root.into())
     }
 }

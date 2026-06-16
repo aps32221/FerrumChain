@@ -1,0 +1,16 @@
+# Keep the build context tiny — the image only needs index.html + nginx.conf.
+target/
+vendor/
+pallets/
+crates/
+runtime/
+node/
+Cargo.toml
+Cargo.lock
+rust-toolchain.toml
+SPEC.md
+BUILD.md
+README.md
+LICENSE
+.git/
+**/*.rs
