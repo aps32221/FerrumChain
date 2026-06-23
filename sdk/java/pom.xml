@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>network.ferrum</groupId>
+  <artifactId>ferrum-sdk</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+  <name>ferrum-sdk</name>
+  <description>Typed third-party SDK for the Ferrum sovereign blockchain (wraps polkaj).</description>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <polkaj.version>0.5.0</polkaj.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.emeraldpay.polkaj</groupId>
+      <artifactId>polkaj-api-ws</artifactId>
+      <version>${polkaj.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.emeraldpay.polkaj</groupId>
+      <artifactId>polkaj-schnorrkel</artifactId>
+      <version>${polkaj.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.emeraldpay.polkaj</groupId>
+      <artifactId>polkaj-ss58</artifactId>
+      <version>${polkaj.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.emeraldpay.polkaj</groupId>
+      <artifactId>polkaj-scale</artifactId>
+      <version>${polkaj.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>1.78.1</version>
+    </dependency>
+  </dependencies>
+</project>

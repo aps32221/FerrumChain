@@ -1,0 +1,15 @@
+name: ferrum_sdk
+description: Typed third-party SDK for the Ferrum sovereign blockchain (wraps polkadart).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  polkadart: ^0.6.0
+  polkadart_keyring: ^0.6.0
+  pointycastle: ^3.9.1
+
+dev_dependencies:
+  lints: ^4.0.0

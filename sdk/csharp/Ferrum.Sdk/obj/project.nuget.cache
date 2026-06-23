@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "dgSpecHash": "oSYCchB/kLQ=",
+  "success": false,
+  "projectFilePath": "G:\\project\\ferrum\\ferrum\\sdk\\csharp\\Ferrum.Sdk\\Ferrum.Sdk.csproj",
+  "expectedPackageFiles": [],
+  "logs": [
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Substrate.NetApi. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages, nuget.org",
+      "projectPath": "G:\\project\\ferrum\\ferrum\\sdk\\csharp\\Ferrum.Sdk\\Ferrum.Sdk.csproj",
+      "filePath": "G:\\project\\ferrum\\ferrum\\sdk\\csharp\\Ferrum.Sdk\\Ferrum.Sdk.csproj",
+      "libraryId": "Substrate.NetApi",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
+}
