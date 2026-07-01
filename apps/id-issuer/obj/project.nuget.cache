@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "PzF084PyiO4=",
+  "success": true,
+  "projectFilePath": "G:\\project\\ferrum\\ferrum\\apps\\id-issuer\\FerrumIdIssuer.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Cat\\.nuget\\packages\\microsoft.win32.systemevents\\6.0.0\\microsoft.win32.systemevents.6.0.0.nupkg.sha512",
+    "C:\\Users\\Cat\\.nuget\\packages\\qrcoder\\1.6.0\\qrcoder.1.6.0.nupkg.sha512",
+    "C:\\Users\\Cat\\.nuget\\packages\\system.drawing.common\\6.0.0\\system.drawing.common.6.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

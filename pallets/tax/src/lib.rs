@@ -70,6 +70,24 @@ pub mod pallet {
         fn settle_fiat(payer: &AccountId, receipt: Hash32, amount: FiatAmount) -> DispatchResult;
     }
 
+    /// 已結算稅收回呼 — 由消費端(如 `pallet-lottery`)實作,用於累計**經認證、
+    /// 對應真實 eTWD 移轉**的稅收(僅 `settle` 路徑觸發,非無權限收據)。
+    ///
+    /// Authenticated-revenue hook — implemented by a consumer (e.g.
+    /// `pallet-lottery`) to tally **settled, value-backed** tax revenue. Fired
+    /// only from the `settle` path (never the permissionless receipt writer),
+    /// so a permissionless caller cannot inflate the tally (SPEC §9 integration).
+    pub trait RevenueSink {
+        /// 通知一筆義務已以 eTWD 結算。/ Notify that an obligation settled in eTWD.
+        fn note_settled(kind: TaxKind, amount: FiatAmount);
+    }
+
+    /// 無作用實作 — 供不接開獎系統的 runtime 與測試使用。
+    /// No-op impl for runtimes/tests without a lottery consumer.
+    impl RevenueSink for () {
+        fn note_settled(_kind: TaxKind, _amount: FiatAmount) {}
+    }
+
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
@@ -83,6 +101,13 @@ pub mod pallet {
         ///
         /// Treasury settlement trait implementation (eTWD payment, §08).
         type Treasury: TreasurySettle<Self::AccountId>;
+
+        /// 已結算稅收回呼(預設 `()` 為無作用;開獎 runtime 接 `pallet-lottery`)。
+        ///
+        /// Authenticated-revenue hook (`()` for a no-op; lottery runtimes wire
+        /// `pallet-lottery`). Fired on `settle` so the lottery's tax-proportional
+        /// prize pool reflects only real, value-backed settlements (SPEC §9).
+        type RevenueHook: RevenueSink;
 
         /// 稽核者來源 — 僅授權稽核員可呼叫 `authorize_audit`。
         ///
@@ -108,6 +133,16 @@ pub mod pallet {
     /// touches the chain — only the hash and metadata are anchored (§06).
     #[pallet::storage]
     pub type Invoices<T: Config> = StorageMap<_, Blake2_128Concat, Hash32, InvoiceAnchor>;
+
+    /// 發票錨定的**區塊高度**:發票雜湊 -> 區塊號(§06/§09 開獎期視窗化依據,
+    /// 採區塊高度而非可被驗證者影響的時間戳)。
+    ///
+    /// Anchoring **block height** per invoice: hash -> block number. Used to
+    /// window lottery draw periods by block height (not a validator-influenceable
+    /// timestamp). SPEC §9 `InvoiceRegistry::anchored_block`.
+    #[pallet::storage]
+    pub type InvoiceAnchoredAt<T: Config> =
+        StorageMap<_, Blake2_128Concat, Hash32, BlockNumberFor<T>>;
 
     /// 稅務義務表：(納稅人 DID, 申報期 slot) -> 義務記錄（以法幣計價）。
     ///
@@ -176,6 +211,8 @@ pub mod pallet {
         InvalidProof,
         /// 找不到該發票，無法授權稽核。Invoice not found for audit authorization.
         InvoiceNotFound,
+        /// 簽署者非發票所載的簽發商家。Signer is not the invoice's issuing merchant.
+        NotIssuer,
     }
 
     // ========================================================================
@@ -191,18 +228,26 @@ pub mod pallet {
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::anchor_invoice())]
         pub fn anchor_invoice(origin: OriginFor<T>, anchor: InvoiceAnchor) -> DispatchResult {
-            let _who = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
 
             ensure!(
                 !Invoices::<T>::contains_key(anchor.invoice_hash),
                 Error::<T>::InvoiceAlreadyAnchored
             );
+            // Only the issuing merchant may anchor its own invoice. This is
+            // load-bearing for lottery-ticket integrity (§06/SPEC §9): a ticket
+            // is eligible only if merchant-signed. `InvoiceAnchor.issuer` is a
+            // fixed `ferrum_primitives::AccountId`; compare by SCALE encoding so
+            // the check holds for any runtime `AccountId` that encodes alike.
+            ensure!(who.encode() == anchor.issuer.encode(), Error::<T>::NotIssuer);
 
             let invoice_hash = anchor.invoice_hash;
             let issuer = anchor.issuer.clone();
             let kind = anchor.kind;
 
             Invoices::<T>::insert(invoice_hash, anchor);
+            // Record the anchoring block height for lottery period windowing.
+            InvoiceAnchoredAt::<T>::insert(invoice_hash, frame_system::Pallet::<T>::block_number());
 
             Self::deposit_event(Event::InvoiceAnchored { invoice_hash, issuer, kind });
             Ok(())
@@ -306,7 +351,13 @@ pub mod pallet {
 
             obligation.settled = true;
             let amount = obligation.amount_due;
+            let kind = obligation.kind;
             Obligations::<T>::insert((subject.clone(), slot), obligation);
+
+            // Notify the authenticated-revenue consumer (e.g. the lottery's
+            // tax-proportional prize pool). Value-backed because we are on the
+            // `settle` path that just moved eTWD (SPEC §9).
+            T::RevenueHook::note_settled(kind, amount);
 
             Self::deposit_event(Event::Settled { subject, slot, amount });
             Ok(())
@@ -357,6 +408,25 @@ pub mod pallet {
         fn current_slot() -> u64 {
             use sp_runtime::SaturatedConversion;
             frame_system::Pallet::<T>::block_number().saturated_into::<u64>()
+        }
+
+        // ------- Public read API (consumed by the runtime's lottery adapter) -------
+
+        /// 讀取一筆發票錨定。/ Read an invoice anchor.
+        pub fn invoice(invoice_hash: &Hash32) -> Option<InvoiceAnchor> {
+            Invoices::<T>::get(invoice_hash)
+        }
+        /// 該發票是否已錨定。/ Whether the invoice is anchored.
+        pub fn is_anchored(invoice_hash: &Hash32) -> bool {
+            Invoices::<T>::contains_key(invoice_hash)
+        }
+        /// 該發票的稅別。/ The invoice's tax category.
+        pub fn invoice_kind(invoice_hash: &Hash32) -> Option<TaxKind> {
+            Invoices::<T>::get(invoice_hash).map(|a| a.kind)
+        }
+        /// 該發票的錨定區塊高度。/ The invoice's anchoring block height.
+        pub fn anchored_block(invoice_hash: &Hash32) -> Option<BlockNumberFor<T>> {
+            InvoiceAnchoredAt::<T>::get(invoice_hash)
         }
     }
 }

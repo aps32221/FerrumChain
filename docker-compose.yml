@@ -1,0 +1,9 @@
+services:
+  web:
+    image: nginx:alpine
+    container_name: ferrum-web
+    ports:
+      - "8088:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    restart: unless-stopped

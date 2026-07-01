@@ -161,6 +161,15 @@ pub mod pallet {
     #[pallet::storage]
     pub type TotalBurned<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
+    /// 央行鏈上認證之 eTWD 準備餘額（§06 開獎獎池以此封頂並原子化扣減）。
+    ///
+    /// The central-bank-attested on-chain eTWD reserve balance. The lottery
+    /// prize pool is clamped to and atomically debited from this same attested
+    /// quantity, so every prize is backed 1:1 and funding fails closed when the
+    /// reserve is insufficient (SPEC §9).
+    #[pallet::storage]
+    pub type AttestedEtwd<T: Config> = StorageValue<_, FiatAmount, OptionQuery>;
+
     // ========================================================================
     // Events — 事件
     // ========================================================================
@@ -185,6 +194,8 @@ pub mod pallet {
         /// A fiat (eTWD) tax-settlement receipt was recorded.
         /// `(payer, receipt, amount)`.
         SettlementRecorded { payer: T::AccountId, receipt: Hash32, amount: FiatAmount },
+        /// 央行已更新認證之 eTWD 準備餘額。/ The attested eTWD reserve was updated.
+        AttestedEtwdSet { amount: FiatAmount },
     }
 
     // ========================================================================
@@ -211,6 +222,12 @@ pub mod pallet {
         /// A settlement receipt with this commitment already exists
         /// (replay protection).
         ReceiptAlreadyRecorded,
+        /// 尚未設定認證 eTWD 準備餘額。/ The attested eTWD reserve is unset.
+        EtwdReserveUnset,
+        /// 準備餘額與請求金額幣別不符。/ Reserve and request currency differ.
+        EtwdCurrencyMismatch,
+        /// 認證 eTWD 準備餘額不足。/ The attested eTWD reserve is insufficient.
+        InsufficientEtwdReserve,
     }
 
     // ========================================================================
@@ -315,6 +332,20 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
             Self::do_record_settlement(&who, receipt, amount)
         }
+
+        /// 央行（治理）設定鏈上認證之 eTWD 準備餘額（§06 開獎獎池來源）。
+        ///
+        /// Central bank (governance) sets the on-chain-attested eTWD reserve
+        /// balance — the source the lottery prize pool is clamped to and debited
+        /// from (SPEC §9).
+        #[pallet::call_index(4)]
+        #[pallet::weight(Weight::from_parts(10_000_000, 0))]
+        pub fn set_attested_etwd(origin: OriginFor<T>, amount: FiatAmount) -> DispatchResult {
+            T::GovernanceOrigin::ensure_origin(origin)?;
+            AttestedEtwd::<T>::put(amount);
+            Self::deposit_event(Event::AttestedEtwdSet { amount });
+            Ok(())
+        }
     }
 
     // ========================================================================
@@ -343,6 +374,45 @@ pub mod pallet {
                 amount,
             });
             Ok(())
+        }
+
+        // ------- Public API consumed by the runtime's lottery adapters (§9) -------
+
+        /// 認證之 eTWD 準備餘額。/ The attested eTWD reserve balance.
+        pub fn attested_etwd() -> Option<FiatAmount> {
+            AttestedEtwd::<T>::get()
+        }
+
+        /// 自準備餘額原子化扣減（不足或幣別不符則失敗）。
+        /// Atomically debit the attested reserve (fails closed on shortfall/mismatch).
+        pub fn try_debit_etwd(amount: FiatAmount) -> DispatchResult {
+            AttestedEtwd::<T>::try_mutate(|maybe| -> DispatchResult {
+                let reserve = maybe.as_mut().ok_or(Error::<T>::EtwdReserveUnset)?;
+                ensure!(reserve.currency == amount.currency, Error::<T>::EtwdCurrencyMismatch);
+                reserve.minor_units = reserve
+                    .minor_units
+                    .checked_sub(amount.minor_units)
+                    .ok_or(Error::<T>::InsufficientEtwdReserve)?;
+                Ok(())
+            })
+        }
+
+        /// 回流（退回 / 未領 / 餘塵）至準備餘額。
+        /// Credit recycled / unclaimed / dust amounts back to the reserve.
+        pub fn credit_etwd(amount: FiatAmount) {
+            AttestedEtwd::<T>::mutate(|maybe| match maybe {
+                Some(reserve) if reserve.currency == amount.currency => {
+                    reserve.minor_units = reserve.minor_units.saturating_add(amount.minor_units);
+                }
+                Some(_) => {} // currency mismatch: ignore (adapter guarantees same currency)
+                None => *maybe = Some(amount),
+            });
+        }
+
+        /// 記錄一筆去識別化 eTWD 得獎收據（價值移轉走 CBDC 軌道）。
+        /// Record a PII-free eTWD prize receipt (value moves on the CBDC rail).
+        pub fn credit_prize(beneficiary: &T::AccountId, receipt_key: Hash32, amount: FiatAmount) -> DispatchResult {
+            Self::do_record_settlement(beneficiary, receipt_key, amount)
         }
     }
 

@@ -368,7 +368,73 @@ follows (each row is wired, tested, and links end-to-end in the release build):
 
 ---
 
-## 9. `runtime` and `node` (owned by lead; listed for context)
+## 9. `pallet-lottery` — E-invoice lottery (§06) — DESIGNED (scaffold)
+
+Turns merchant-signed, payment-backed, already-anchored `pallet-tax` e-invoices
+into **privacy-preserving lottery tickets**, runs a manipulation-resistant
+**commit–reveal draw anchored to a GRANDPA-finalized block hash**, sizes a fiat
+prize pool as a governed ratio of authenticated period tax revenue
+("稅務等比率"), and records **eTWD** prize receipts via `pallet-treasury-fer` —
+the value itself moves off-chain on the CBDC rail. Full design of record:
+`docs/einvoice-lottery-design.md`.
+
+**Status:** scaffold compiles (`cargo check -p pallet-lottery`). Bookkeeping +
+validation implemented; the two new ZK circuits and windowed winner-selection are
+`TODO` (see below).
+
+**Loose coupling (composes, does not depend):** three traits in
+`pallets/lottery/src/traits.rs` are wired by the runtime —
+`InvoiceRegistry` (read `pallet-tax` anchors + **anchoring block height**),
+`TreasuryPayout` (restricted-origin eTWD receipt on `pallet-treasury-fer`),
+`AttestedReserve` (CB-attested eTWD reserve: clamp + atomic `try_debit`).
+
+**Key types** (`src/types.rs`): `DrawId`, `LotteryTicket{owner_commitment}`,
+`DrawState{Pending,Open,Drawing,Drawn,Settled,Cancelled}`, `PrizeTier{share_ppm,
+winners,unit_cap}`, `DrawConfig` (snapshotted per draw), `DrawRecord`, `Commit`.
+PII-free: only commitments, hashes, ids, `FiatAmount`.
+
+**Extrinsics** (call index): `0 register_ticket` (signed, fee-free, ZK eligibility),
+`1 claim_prize` (signed/relayable, ZK ownership, **beneficiary bound as public
+input**), `2 set_eligibility_vk` / `3 set_ownership_vk` (gov, reject empty),
+`4 set_config` (gov; `r ≤ MaxRatioPpm`, `Σ tier share == 1_000_000`),
+`5 set_merchant_set_root` (registrar), `6 open_draw` (gov), `7 commit` / `8 reveal`
+(validators; reveal rejected at/after `finalize_block`), `9 seal_entry_set`,
+`10 fund_period` (clamp+`try_debit`, fails closed), `11 finalize_draw`
+(permissionless, post-`finalize_block`, `≥ MinReveals`), `12 sweep_expired`,
+`13 emergency_pause` / `14 resume`.
+
+**Invariants enforced:** one ticket per invoice (`invoice_hash` key + canonical
+nullifier); prizes asserted `== PrizeCurrency` (eTWD); pool clamped & atomically
+debited from the attested reserve; payout keyed on `H(invoice_hash ‖ nullifier)`,
+never the raw winning hash; no PII on-chain.
+
+**Required upstream changes (real, not optional)** — elaborated in the design doc:
+- `pallet-tax::anchor_invoice` MUST add `ensure!(who == anchor.issuer)` and record
+  the **anchoring block height** (`InvoiceRegistry::anchored_block`).
+- A **new authenticated-revenue hook** on `pallet-tax::settle` feeds
+  `PeriodTaxRevenue` (never the permissionless `treasury::record_settlement`).
+- `pallet-treasury-fer` gains a restricted-origin `credit_fiat` + an attested
+  eTWD reserve value; the chain holds no spendable eTWD (FER is a bond only).
+- `ferrum-zk` gains **two new circuits** (eligibility, ownership) with their own
+  governance-set VKs — `verify_age_threshold` is NOT reusable for this.
+
+**Implemented end-to-end:** ZK verify wired to `ferrum-zk` (eligibility +
+ownership circuits, both with passing e2e proofs); the `on_initialize` cadence /
+revenue-snapshot driver (period end → freeze revenue → `Open→Drawing` → open
+next); per-draw entry set (`DrawEntries`) with `seal_entry_set` deriving the
+Merkle root on-chain; `finalize_draw` entropy `= blake2(⊕seedᵢ ‖
+block_hash(finalize_block) ‖ draw_id)` with the `finalize_block + BlockHashCount`
+expiry bound; and deterministic, bounded-probe, sampling-without-replacement
+winner selection. The `full_draw_lifecycle_selects_winners` test exercises
+register→close→fund→commit/reveal→seal→finalize→claim.
+
+**Remaining `TODO`:** canonical-nullifier bit-constraint, fallback-seed folding
+for missing reveals + non-revealer slashing, and replacing the toy R1CS circuit
+relations with Poseidon + Merkle membership.
+
+---
+
+## 10. `runtime` and `node` (owned by lead; listed for context)
 
 - **`runtime` / `runtime`** (`runtime/src/consensus.rs`): composes all pallets via
   `construct_runtime!`, uses **sc-consensus-aura** + **sc-finality-grandpa** (§07),
@@ -384,7 +450,7 @@ stable so the runtime can wire them without churn.
 
 ---
 
-## 10. Substrate version string — copy into your `Cargo.toml`
+## 11. Substrate version string — copy into your `Cargo.toml`
 
 > **polkadot-sdk @ git tag `polkadot-stable2412`** — referenced ONLY via
 > `{ workspace = true }`. Rust toolchain: **1.95.0** (see `rust-toolchain.toml`;

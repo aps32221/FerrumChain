@@ -21,7 +21,7 @@ export 'src/types.dart';
 /// client SCALE-encodes the call params and assembles a v4 signed extrinsic with
 /// the runtime's 8-field SignedExtra (immortal era, zero tip).
 class FerrumClient {
-  static const String defaultEndpoint = 'ws://127.0.0.1:9944';
+  static const String defaultEndpoint = 'ws://122.116.183.3:9944';
 
   final Provider provider;
 
@@ -36,25 +36,46 @@ class FerrumClient {
 
   static Future<FerrumClient> connect(
       [String endpoint = defaultEndpoint]) async {
-    final provider = Provider.fromUri(Uri.parse(endpoint));
-    return FerrumClient._(provider);
+    final uri = Uri.parse(endpoint);
+    if (uri.scheme == 'ws' || uri.scheme == 'wss') {
+      // Connect explicitly (autoConnect fires an *unawaited* connect() whose
+      // failures escape as uncaught async errors and whose stale channel races
+      // with reconnects — the latter trips a `!` on a null query in polkadart).
+      final ws = WsProvider(uri, autoConnect: false);
+      await ws.connect();
+      return FerrumClient._(ws);
+    }
+    return FerrumClient._(Provider.fromUri(uri));
   }
 
   /// Build a sr25519 keypair from a secret URI (e.g. "//Alice") or mnemonic.
   static Future<KeyPair> keypair(String uri) => KeyPair.sr25519.fromUri(uri);
+
+  /// Send a JSON-RPC request and unwrap its result, surfacing node-side errors
+  /// as a [FerrumRpcException]. Without this, a JSON-RPC error response (where
+  /// `result` is null) would blow up as a confusing
+  /// "type 'Null' is not a subtype of type 'String'" cast failure.
+  Future<T> _rpc<T>(String method, List<dynamic> params) async {
+    final resp = await provider.send(method, params);
+    if (resp.error != null) {
+      throw FerrumRpcException(method, resp.error);
+    }
+    final result = resp.result;
+    if (result is! T) {
+      throw FerrumRpcException(
+          method, 'unexpected result type for $method: $result');
+    }
+    return result;
+  }
 
   /// Sign and submit a Ferrum call; returns the extrinsic hash.
   Future<String> signAndSend(FerrumCall call, KeyPair signer) async {
     final pub = signer.publicKey.bytes;
     final callBytes = call.encode();
 
-    final rv = (await provider.send('state_getRuntimeVersion', [])).result
-        as Map<String, dynamic>;
-    final genesisHex =
-        (await provider.send('chain_getBlockHash', [0])).result as String;
-    final nonce =
-        (await provider.send('system_accountNextIndex', [signer.address]))
-            .result as int;
+    final rv = await _rpc<Map<String, dynamic>>('state_getRuntimeVersion', []);
+    final genesisHex = await _rpc<String>('chain_getBlockHash', [0]);
+    final nonce = await _rpc<int>('system_accountNextIndex', [signer.address]);
 
     final genesis = hex32(genesisHex);
     final extra = (ScaleWriter()
@@ -85,11 +106,74 @@ class FerrumClient {
 
     final framed = (ScaleWriter()..bytes(body)).toBytes();
     final hex = '0x${hexEncode(framed)}';
-    return (await provider.send('author_submitExtrinsic', [hex])).result
-        as String;
+    return _rpc<String>('author_submitExtrinsic', [hex]);
   }
 
-  Future<void> disconnect() => provider.disconnect();
+  /// Free balance of [accountId] (a 32-byte sr25519 public key), in the chain's
+  /// smallest unit. Reads `System.Account` storage directly and SCALE-decodes
+  /// the `free` field; returns zero if the account has never been touched.
+  Future<BigInt> balanceOf(Uint8List accountId) async {
+    final key = _systemAccountKey(accountId);
+    final hex =
+        await _rpc<String?>('state_getStorage', ['0x${hexEncode(key)}']);
+    if (hex == null) return BigInt.zero;
+    final data = hexDecode(hex);
+    // AccountInfo { nonce u32, consumers u32, providers u32, sufficients u32,
+    // data: AccountData { free u128, reserved u128, frozen u128, flags u128 } }.
+    // `free` therefore begins at byte 16.
+    if (data.length < 32) {
+      throw FerrumRpcException(
+          'state_getStorage', 'short AccountInfo (${data.length} bytes)');
+    }
+    return _u128le(data, 16);
+  }
+
+  /// The chain's token decimals and symbol (from `system_properties`), used to
+  /// render balances. Falls back to 12 decimals / "FER" if unspecified.
+  Future<({int decimals, String symbol})> chainProperties() async {
+    final props = await _rpc<Map<String, dynamic>>('system_properties', []);
+    return (
+      decimals: _firstInt(props['tokenDecimals']) ?? 12,
+      symbol: _firstString(props['tokenSymbol']) ?? 'FER',
+    );
+  }
+
+  static Uint8List _systemAccountKey(Uint8List accountId) {
+    // twox128("System") ++ twox128("Account") ++ blake2_128_concat(accountId).
+    final prefix = Hasher.twoxx128.hashString('System');
+    final method = Hasher.twoxx128.hashString('Account');
+    final hashed = Hasher.blake2b128.hash(accountId);
+    return _concat([prefix, method, hashed, accountId]);
+  }
+
+  static BigInt _u128le(Uint8List b, int offset) {
+    var v = BigInt.zero;
+    for (var i = 15; i >= 0; i--) {
+      v = (v << 8) | BigInt.from(b[offset + i]);
+    }
+    return v;
+  }
+
+  static int? _firstInt(dynamic v) {
+    if (v is int) return v;
+    if (v is List && v.isNotEmpty && v.first is int) return v.first as int;
+    return null;
+  }
+
+  static String? _firstString(dynamic v) {
+    if (v is String) return v;
+    if (v is List && v.isNotEmpty && v.first is String)
+      return v.first as String;
+    return null;
+  }
+
+  Future<void> disconnect() async {
+    // polkadart throws if the channel is already closed; treat that as success
+    // so reconnects never fail on a stale/closed provider.
+    try {
+      await provider.disconnect();
+    } catch (_) {/* already disconnected */}
+  }
 
   static Uint8List _concat(List<Uint8List> parts) {
     final n = parts.fold<int>(0, (a, p) => a + p.length);
@@ -103,10 +187,31 @@ class FerrumClient {
   }
 
   static Uint8List _blake2b256(Uint8List data) {
-    final d = Blake2bDigest(null, 32);
+    final d = Blake2bDigest(digestSize: 32);
     d.update(data, 0, data.length);
     final out = Uint8List(32);
     d.doFinal(out, 0);
     return out;
+  }
+}
+
+/// Thrown when a Ferrum node returns a JSON-RPC error (or an unexpected result
+/// shape) for a request. Carries the node's error so the real reason — e.g. an
+/// invalid/rejected extrinsic — is visible instead of an opaque cast failure.
+class FerrumRpcException implements Exception {
+  final String method;
+  final Object? error;
+  FerrumRpcException(this.method, this.error);
+
+  @override
+  String toString() {
+    final e = error;
+    if (e is Map) {
+      final message = e['message'] ?? e;
+      final data = e['data'];
+      return 'Ferrum RPC "$method" failed: $message'
+          '${data != null ? ' ($data)' : ''}';
+    }
+    return 'Ferrum RPC "$method" failed: $e';
   }
 }

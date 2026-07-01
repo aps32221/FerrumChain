@@ -52,7 +52,7 @@
           "framework": "net8.0",
           "targetAlias": "net8.0",
           "dependencies": {
-            "Substrate.NetApi": {
+            "Substrate.NET.API": {
               "target": "Package",
               "version": "[0.9.24, )"
             }

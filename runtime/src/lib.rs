@@ -392,6 +392,9 @@ impl pallet_tax::TreasurySettle<AccountId> for TaxTreasuryAdapter {
 impl pallet_tax::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Treasury = TaxTreasuryAdapter;
+    // 已結算 VAT 稅收導入開獎系統的稅務等比率獎池(§06/§9)。
+    // Settled VAT revenue feeds the lottery's tax-proportional pool (§06/§9).
+    type RevenueHook = TaxRevenueAdapter;
     // 授權稽核員為治理(Root)指定 / auditors authorized via Root governance.
     type AuditorOrigin = EnsureRoot<AccountId>;
     type GovernanceOrigin = EnsureRoot<AccountId>;
@@ -466,6 +469,109 @@ impl pallet_interop::Config for Runtime {
 }
 
 // ============================================================================
+// pallet-lottery — e-invoice lottery, tax-proportional eTWD prizes (§06)
+// ----------------------------------------------------------------------------
+// Loosely coupled: the lottery composes pallet-tax (invoice anchors) and
+// pallet-treasury-fer (attested eTWD reserve + PII-free prize receipts) through
+// adapter structs that call each pallet's public read/notify API. All glue lives
+// here in the runtime — the pallets stay independent (SPEC §9).
+// ============================================================================
+
+/// 將 `pallet-tax` 的發票錨定唯讀介面轉接給開獎系統(§06 票券資格)。
+///
+/// Adapts `pallet-tax`'s invoice-anchor read API to the lottery's
+/// `InvoiceRegistry` (ticket eligibility + period windowing by block height).
+pub struct LotteryTaxAdapter;
+impl pallet_lottery::InvoiceRegistry for LotteryTaxAdapter {
+    fn invoice_kind(invoice_hash: &ferrum_primitives::Hash32) -> Option<ferrum_primitives::TaxKind> {
+        pallet_tax::Pallet::<Runtime>::invoice_kind(invoice_hash)
+    }
+    fn anchored_block(invoice_hash: &ferrum_primitives::Hash32) -> Option<ferrum_primitives::BlockNumber> {
+        use sp_runtime::SaturatedConversion;
+        pallet_tax::Pallet::<Runtime>::anchored_block(invoice_hash).map(|b| b.saturated_into())
+    }
+    fn is_anchored(invoice_hash: &ferrum_primitives::Hash32) -> bool {
+        pallet_tax::Pallet::<Runtime>::is_anchored(invoice_hash)
+    }
+}
+
+/// 將得獎給付轉接給 `pallet-treasury-fer` 的去識別化 eTWD 收據(價值走 CBDC 軌道)。
+///
+/// Adapts prize payout to the treasury's PII-free eTWD receipt recorder.
+pub struct LotteryTreasuryAdapter;
+impl pallet_lottery::TreasuryPayout<AccountId> for LotteryTreasuryAdapter {
+    fn credit_fiat(
+        beneficiary: &AccountId,
+        receipt_key: ferrum_primitives::Hash32,
+        amount: ferrum_primitives::FiatAmount,
+    ) -> sp_runtime::DispatchResult {
+        pallet_treasury_fer::Pallet::<Runtime>::credit_prize(beneficiary, receipt_key, amount)
+    }
+}
+
+/// 將獎池準備封頂/扣減/回流轉接給央行認證之 eTWD 準備餘額。
+///
+/// Adapts the prize-pool clamp/debit/recycle to the central-bank-attested eTWD
+/// reserve in `pallet-treasury-fer`.
+pub struct LotteryReserveAdapter;
+impl pallet_lottery::AttestedReserve for LotteryReserveAdapter {
+    fn attested_balance() -> ferrum_primitives::FiatAmount {
+        pallet_treasury_fer::Pallet::<Runtime>::attested_etwd()
+            .unwrap_or(ferrum_primitives::FiatAmount { currency: *b"TWD", minor_units: 0 })
+    }
+    fn try_debit(amount: ferrum_primitives::FiatAmount) -> sp_runtime::DispatchResult {
+        pallet_treasury_fer::Pallet::<Runtime>::try_debit_etwd(amount)
+    }
+    fn credit(amount: ferrum_primitives::FiatAmount) {
+        pallet_treasury_fer::Pallet::<Runtime>::credit_etwd(amount)
+    }
+}
+
+/// 將 `pallet-tax` 的已結算稅收回呼導入開獎系統的稅務等比率獎池(僅 `ValueAdded`)。
+///
+/// Feeds `pallet-tax`'s settled-revenue hook into the lottery's
+/// tax-proportional pool — only for `ValueAdded` (VAT) settlements (§9).
+pub struct TaxRevenueAdapter;
+impl pallet_tax::RevenueSink for TaxRevenueAdapter {
+    fn note_settled(kind: ferrum_primitives::TaxKind, amount: ferrum_primitives::FiatAmount) {
+        if kind == ferrum_primitives::TaxKind::ValueAdded {
+            pallet_lottery::Pallet::<Runtime>::note_settled_revenue(amount);
+        }
+    }
+}
+
+parameter_types! {
+    /// 開獎獎金幣別 = eTWD。/ Prize currency = eTWD.
+    pub const LotteryPrizeCurrency: ferrum_primitives::FiatCurrency = *b"TWD";
+    /// 憲制級資金比率上限 2%。/ Constitutional funding-ratio ceiling 2%.
+    pub const LotteryMaxRatioPpm: u32 = 20_000;
+    /// 有效抽獎所需揭示法定數。/ Quorum of reveals for a valid draw.
+    pub const LotteryMinReveals: u32 = 3;
+    /// 抽獎承諾保證金。/ Commit bond.
+    pub const LotteryCommitDeposit: Balance = 250_000 * FER;
+    /// 年齡述詞門檻(資格電路)。/ Age-predicate threshold (eligibility circuit).
+    pub const LotteryAgeThreshold: u32 = 18;
+}
+
+impl pallet_lottery::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Tax = LotteryTaxAdapter;
+    type AgeThreshold = LotteryAgeThreshold;
+    type PrizeTreasury = LotteryTreasuryAdapter;
+    type EtwdReserve = LotteryReserveAdapter;
+    // 治理 / 緊急 / 商家註冊皆由治理(Root)代表 / governed via Root in this build.
+    type GovernanceOrigin = EnsureRoot<AccountId>;
+    type EmergencyOrigin = EnsureRoot<AccountId>;
+    type RegistrarOrigin = EnsureRoot<AccountId>;
+    type PrizeCurrency = LotteryPrizeCurrency;
+    type MaxRatioPpm = LotteryMaxRatioPpm;
+    type MinReveals = LotteryMinReveals;
+    type CommitDeposit = LotteryCommitDeposit;
+    type Currency = Balances;
+    type WeightInfo = ();
+}
+
+// ============================================================================
 // construct_runtime! — 組合所有 pallet / compose all pallets
 // ============================================================================
 
@@ -489,6 +595,7 @@ construct_runtime!(
         Treasury: pallet_treasury_fer = 13,
         Federation: pallet_federation = 14,
         Interop: pallet_interop = 15,
+        Lottery: pallet_lottery = 16,
     }
 );
 

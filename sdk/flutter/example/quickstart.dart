@@ -11,7 +11,7 @@ import 'package:ferrum_sdk/ferrum_sdk.dart';
 import 'package:pointycastle/digests/blake2b.dart';
 
 String commit(String s) {
-  final d = Blake2bDigest(null, 32);
+  final d = Blake2bDigest(digestSize: 32);
   final bytes = Uint8List.fromList(s.codeUnits);
   d.update(bytes, 0, bytes.length);
   final out = Uint8List(32);

@@ -42,6 +42,8 @@ extern crate alloc;
 pub mod age_proof;
 pub mod tax_bracket;
 pub mod bbs;
+pub mod lottery_eligibility;
+pub mod lottery_ownership;
 
 // Re-export the canonical age-proof API at the crate root for ergonomic
 // `ferrum_zk::verify_age_threshold(...)` call sites, matching the whitepaper
@@ -54,3 +56,41 @@ pub use age_proof::{
 
 pub use ark_bls12_381::{Bls12_381, Fr};
 pub use ark_groth16::{PreparedVerifyingKey, Proof};
+
+use ark_ff::{BigInteger, PrimeField};
+
+/// 判斷一個 32 位元組值是否為 **canonical** 的 BLS12-381 純量(值 < 場模數),
+/// 使鏈上位元組表示與電路所綁定的場元素一一對應 —— 杜絕以非正規重編碼進行
+/// 重放(同一場元素的兩種位元組表示)。
+///
+/// Whether a 32-byte value is a **canonical** BLS12-381 scalar (value < the
+/// field modulus). This makes the on-chain byte representation map bijectively
+/// to the field element the circuit binds, preventing replay via a non-canonical
+/// re-encoding (two byte strings reducing to the same field element). The pallet
+/// keys its nullifier anti-replay maps on this canonical representation.
+pub fn is_canonical_scalar(bytes: &ferrum_primitives::Nullifier) -> bool {
+    let fe = Fr::from_le_bytes_mod_order(&bytes[..]);
+    // Re-encode the reduced field element; equal iff the input was already < r.
+    let canonical = fe.into_bigint().to_bytes_le();
+    canonical.as_slice() == &bytes[..]
+}
+
+#[cfg(test)]
+mod canonical_tests {
+    use super::is_canonical_scalar;
+
+    #[test]
+    fn detects_canonical_and_non_canonical_scalars() {
+        // zero and a small value are < r → canonical
+        assert!(is_canonical_scalar(&[0u8; 32]));
+        let mut small = [0u8; 32];
+        small[0] = 1;
+        assert!(is_canonical_scalar(&small));
+        // all-ones (a 256-bit value, above the 255-bit BLS12-381 scalar modulus)
+        // reduces, so it is NOT canonical
+        assert!(!is_canonical_scalar(&[0xFFu8; 32]));
+        // small repeated bytes are far below the modulus → canonical
+        assert!(is_canonical_scalar(&[12u8; 32]), "12*32 should be canonical");
+        assert!(is_canonical_scalar(&[13u8; 32]), "13*32 should be canonical");
+    }
+}

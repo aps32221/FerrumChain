@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>IdIssuer</RootNamespace>
+    <AssemblyName>FerrumIdIssuer</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- On-chain DID anchoring is opt-in: it pulls the Ferrum SDK (Substrate.NetApi).
+         Build with -p:EnableChain=true once that package can be restored. -->
+    <EnableChain Condition="'$(EnableChain)' == ''">false</EnableChain>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pure-managed QR generation (PngByteQRCode needs no System.Drawing). -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(EnableChain)' == 'true'">
+    <DefineConstants>$(DefineConstants);FERRUM_CHAIN</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(EnableChain)' == 'true'">
+    <ProjectReference Include="..\..\sdk\csharp\Ferrum.Sdk\Ferrum.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

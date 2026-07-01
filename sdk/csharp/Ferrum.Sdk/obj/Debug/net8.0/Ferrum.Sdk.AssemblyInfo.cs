@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("Typed third-party SDK for the Ferrum sovereign blockchain (wraps Substrate.NetApi" +
     ")."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+c33aaccbdcbd0235e4eb38a661e72c18d56619bd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+d7cf8a5ee152523ce7ef8440c12bd50a24aaaf2f")]
 [assembly: System.Reflection.AssemblyProductAttribute("Ferrum.Sdk")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Ferrum.Sdk")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]

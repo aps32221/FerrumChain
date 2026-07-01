@@ -65,3 +65,6 @@ try-runtime = []
 ark-relations = { version = "0.4.0", default-features = false }
 ark-r1cs-std  = { version = "0.4.0", default-features = false }
 ark-snark     = { version = "0.4.0", default-features = false }
+# Poseidon sponge + R1CS gadgets for the production-grade Merkle-membership
+# eligibility circuit (test-only: the on-chain verify path needs only Groth16).
+ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["sponge", "r1cs"] }

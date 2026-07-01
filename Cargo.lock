@@ -278,6 +278,7 @@ checksum = "1f3a13b34da09176a8baba701233fdffbaa7c1b1192ce031a3da4e55ce1f1a56"
 dependencies = [
  "ark-ec",
  "ark-ff",
+ "ark-r1cs-std",
  "ark-relations",
  "ark-serialize",
  "ark-snark",
@@ -286,6 +287,7 @@ dependencies = [
  "derivative",
  "digest 0.10.7",
  "sha2 0.10.9",
+ "tracing",
 ]
 
 [[package]]
@@ -2805,6 +2807,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-identity-fer",
  "pallet-interop",
+ "pallet-lottery",
  "pallet-sudo",
  "pallet-tax",
  "pallet-timestamp",
@@ -2835,6 +2838,7 @@ name = "ferrum-zk"
 version = "0.1.0"
 dependencies = [
  "ark-bls12-381",
+ "ark-crypto-primitives",
  "ark-ec",
  "ark-ff",
  "ark-groth16",
@@ -6399,6 +6403,24 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-consensus-grandpa",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-lottery"
+version = "0.1.0"
+dependencies = [
+ "ferrum-primitives",
+ "ferrum-zk",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",

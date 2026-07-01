@@ -132,6 +132,31 @@ fn genesis(
                 .collect::<Vec<_>>(),
         },
         "sudo": { "key": Some(sudo_key) },
+        // pallet-lottery params (§06 e-invoice lottery). Field names are camelCase
+        // per the FRAME genesis-config serde convention. VAT-only eligibility, a 0.2%
+        // tax-proportional pool capped at 5% of the attested eTWD reserve, and a
+        // three-tier split. Merchant root + circuit VKs are set post-genesis by
+        // governance, so the first draw is not auto-opened.
+        "lottery": {
+            "periodBlocks": 100_000u32,
+            "eligibleKinds": [3u8],                       // 3 = TaxKind::ValueAdded
+            "taxRatioPpm": 2_000u32,                      // 0.2%
+            "reserveCapPpm": 50_000u32,                   // 5%
+            "tiers": [
+                [0u8, 500_000u32, 1u32, 30_000_000u128],
+                [1u8, 300_000u32, 100u32, 1_000_000u128],
+                [2u8, 200_000u32, 10_000u32, 200_000u128]
+            ],
+            "allowForeign": false,
+            "commitDeadline": 90_000u32,
+            "revealDeadline": 95_000u32,
+            "finalizeBlock": 96_000u32,
+            "claimWindow": 1_296_000u32,
+            "merchantSetRoot": serde_json::Value::Null,
+            "eligibilityVk": Vec::<u8>::new(),
+            "ownershipVk": Vec::<u8>::new(),
+            "openFirstDraw": false,
+        },
     })
 }
 

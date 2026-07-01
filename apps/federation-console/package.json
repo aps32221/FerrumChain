@@ -1,0 +1,23 @@
+{
+  "name": "ferrum-federation-console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ferrum Chapter 11 — federation governance & token operations console (whitepaper §11)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@polkadot/keyring": "^13.5.1",
+    "@polkadot/util": "^13.5.1",
+    "@polkadot/util-crypto": "^13.5.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+}

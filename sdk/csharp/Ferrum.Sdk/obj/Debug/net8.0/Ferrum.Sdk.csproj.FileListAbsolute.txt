@@ -1,0 +1,13 @@
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.csproj.AssemblyReference.cache
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.GeneratedMSBuildEditorConfig.editorconfig
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.AssemblyInfoInputs.cache
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.AssemblyInfo.cs
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.csproj.CoreCompileInputs.cache
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.sourcelink.json
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\bin\Debug\net8.0\Ferrum.Sdk.deps.json
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\bin\Debug\net8.0\Ferrum.Sdk.dll
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\bin\Debug\net8.0\Ferrum.Sdk.pdb
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.dll
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\refint\Ferrum.Sdk.dll
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\Ferrum.Sdk.pdb
+G:\project\ferrum\ferrum\sdk\csharp\Ferrum.Sdk\obj\Debug\net8.0\ref\Ferrum.Sdk.dll

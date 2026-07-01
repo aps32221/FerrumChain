@@ -26,6 +26,7 @@ members = [
     "pallets/treasury",
     "pallets/federation",
     "pallets/interop",
+    "pallets/lottery",
     "runtime",
     "node",
 ]
@@ -62,6 +63,7 @@ pallet-credential     = { path = "pallets/credential", default-features = false 
 pallet-treasury-fer   = { path = "pallets/treasury", default-features = false }
 pallet-federation     = { path = "pallets/federation", default-features = false }
 pallet-interop        = { path = "pallets/interop", default-features = false }
+pallet-lottery        = { path = "pallets/lottery", default-features = false }
 ferrum-runtime    = { path = "runtime", default-features = false }
 
 # --- FRAME / Substrate (THE pinned source: polkadot-sdk @ polkadot-stable2412)

@@ -92,6 +92,7 @@ impl EnsureOrigin<frame_system::pallet_prelude::OriginFor<Test>> for EnsureGover
 impl pallet_tax::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Treasury = MockTreasury;
+    type RevenueHook = ();
     type AuditorOrigin = EnsureAuditor;
     type GovernanceOrigin = EnsureGovernance;
     type WeightInfo = ();

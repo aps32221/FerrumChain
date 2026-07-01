@@ -60,6 +60,7 @@ pallet-tax = { workspace = true }
 pallet-treasury-fer = { workspace = true }
 pallet-federation = { workspace = true }
 pallet-interop = { workspace = true }
+pallet-lottery = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -105,6 +106,7 @@ std = [
     "pallet-treasury-fer/std",
     "pallet-federation/std",
     "pallet-interop/std",
+    "pallet-lottery/std",
     "substrate-wasm-builder",
 ]
 runtime-benchmarks = [
@@ -122,6 +124,7 @@ runtime-benchmarks = [
     "pallet-treasury-fer/runtime-benchmarks",
     "pallet-federation/runtime-benchmarks",
     "pallet-interop/runtime-benchmarks",
+    "pallet-lottery/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-try-runtime/try-runtime",
@@ -140,4 +143,5 @@ try-runtime = [
     "pallet-treasury-fer/try-runtime",
     "pallet-federation/try-runtime",
     "pallet-interop/try-runtime",
+    "pallet-lottery/try-runtime",
 ]
